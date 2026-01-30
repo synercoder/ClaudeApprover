@@ -1,0 +1,30 @@
+<Solution>
+  <Folder Name="/root/">
+    <File Path=".editorconfig" />
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="CLAUDE.md" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Build.targets" />
+    <File Path="Directory.Packages.props" />
+    <File Path="LICENSE" />
+    <File Path="nuget.config" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/root/.claude/">
+    <File Path=".claude/Approver.cs" />
+    <File Path=".claude/settings.json" />
+  </Folder>
+  <Folder Name="/root/src/">
+    <File Path="src/Directory.Build.props" />
+    <File Path="src/Directory.Build.targets" />
+    <Project Path="src/Synercoding.ClaudeApprover/Synercoding.ClaudeApprover.csproj" />
+  </Folder>
+  <Folder Name="/root/tests/">
+    <File Path="tests/coverage.runsettings" />
+    <File Path="tests/Directory.Build.props" />
+    <File Path="tests/Directory.Build.targets" />
+    <File Path="tests/Directory.Packages.props" />
+    <Project Path="tests/Synercoding.ClaudeApprover.Tests/Synercoding.ClaudeApprover.Tests.csproj" />
+  </Folder>
+</Solution>

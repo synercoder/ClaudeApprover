@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Synercoding.ClaudeApprover\Synercoding.ClaudeApprover.csproj" />
+  </ItemGroup>
+
+</Project>

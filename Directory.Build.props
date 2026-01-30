@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+
+  <PropertyGroup Label="Build files configurations">
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+    <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
+    <ArtifactsPath Condition="$([MSBuild]::IsOSPlatform('Linux'))">$(MSBuildThisFileDirectory)artifacts-linux/</ArtifactsPath>
+    <OverwriteReadOnlyFiles>true</OverwriteReadOnlyFiles>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <DebugType>portable</DebugType>
+    <DebugType Condition="'$(codecov)' != ''">full</DebugType>
+    <UseSharedCompilation>true</UseSharedCompilation>
+  </PropertyGroup>
+
+  <PropertyGroup Label="CI configurations" Condition="'$(ContinuousIntegrationBuild)' == ''">
+    <ContinuousIntegrationBuild>false</ContinuousIntegrationBuild>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'
+       or '$(TF_BUILD)' == 'true'
+       or '$(TEAMCITY_VERSION)' != ''
+       or '$(APPVEYOR)' != ''
+       or '$(BuildRunner)' == 'MyGet'
+       or '$(JENKINS_URL)' != ''
+       or '$(TRAVIS)' == 'true'
+       or '$(BUDDY)' == 'true'
+       or '$(CODEBUILD_CI)' == 'true'">
+      true
+    </ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Framework configurations">
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup Label="C# configurations">
+    <LangVersion>14</LangVersion>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Features>strict</Features>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>9-default</AnalysisLevel>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Globalization configurations">
+    <NeutralLanguage>en</NeutralLanguage>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Nuget package configurations">
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+
+    <Company>Synercoding</Company>
+    <Copyright>Copyright © $(Company)</Copyright>
+    <Authors>Synercoder</Authors>
+
+    <RepositoryUrl>https://github.com/synercoder/ClaudeApprover</RepositoryUrl>
+    <RepositoryType>Git</RepositoryType>
+    <PackageProjectUrl>https://github.com/synercoder/ClaudeApprover</PackageProjectUrl>
+  </PropertyGroup>
+
+</Project>

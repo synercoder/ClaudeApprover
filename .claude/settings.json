@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [],
+    "deny": []
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dotnet run -v q \"$CLAUDE_PROJECT_DIR\"/.claude/Approver.cs"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileDirectory)..\Directory.Build.props</MSBuildAllProjects>
+  </PropertyGroup>
+
+  <Import Project="$(MSBuildThisFileDirectory)..\Directory.Build.props" />
+
+  <PropertyGroup Condition="'$(Configuration)'=='RELEASE'">
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='DEBUG'">
+    <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
+    <NoWarn>CS1591</NoWarn>
+  </PropertyGroup>
+
+</Project>
