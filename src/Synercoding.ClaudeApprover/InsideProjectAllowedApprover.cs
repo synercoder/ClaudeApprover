@@ -208,6 +208,7 @@ public class InsideProjectAllowedApprover : BaseApprover
             return CommandPermission.Deny;
         }
 
+        newWorkingDirectory = newPath;
         return CommandPermission.Allow;
     }
 
