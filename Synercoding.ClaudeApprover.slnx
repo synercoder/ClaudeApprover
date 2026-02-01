@@ -15,6 +15,10 @@
     <File Path=".claude/Approver.cs" />
     <File Path=".claude/settings.json" />
   </Folder>
+  <Folder Name="/root/.github/" />
+  <Folder Name="/root/.github/workflows/">
+    <File Path=".github/workflows/dotnet-core.yml" />
+  </Folder>
   <Folder Name="/root/src/">
     <File Path="src/Directory.Build.props" />
     <File Path="src/Directory.Build.targets" />
