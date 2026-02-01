@@ -24,7 +24,6 @@
     <File Path="tests/coverage.runsettings" />
     <File Path="tests/Directory.Build.props" />
     <File Path="tests/Directory.Build.targets" />
-    <File Path="tests/Directory.Packages.props" />
     <Project Path="tests/Synercoding.ClaudeApprover.Tests/Synercoding.ClaudeApprover.Tests.csproj" />
   </Folder>
 </Solution>

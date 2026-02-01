@@ -3,13 +3,14 @@
 
   <PropertyGroup>
     <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileDirectory)..\Directory.Build.props</MSBuildAllProjects>
+    <SynercodingProjectCategory>src</SynercodingProjectCategory>
   </PropertyGroup>
 
   <Import Project="$(MSBuildThisFileDirectory)..\Directory.Build.props" />
 
-  <PropertyGroup Condition="'$(Configuration)'=='RELEASE'">
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
+  </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='DEBUG'">
     <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>

@@ -1,65 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
 
-  <PropertyGroup Label="Build files configurations">
-    <UseArtifactsOutput>true</UseArtifactsOutput>
-    <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
-    <ArtifactsPath Condition="$([MSBuild]::IsOSPlatform('Linux'))">$(MSBuildThisFileDirectory)artifacts-linux/</ArtifactsPath>
-    <OverwriteReadOnlyFiles>true</OverwriteReadOnlyFiles>
+  <PropertyGroup>
+    <BaseArtifactsPath>$(MSBuildThisFileDirectory)artifacts/</BaseArtifactsPath>
+    <BaseArtifactsPath Condition="$([MSBuild]::IsOSPlatform('Linux'))">$(MSBuildThisFileDirectory)artifacts-linux/</BaseArtifactsPath>
+    <BaseArtifactsPathSuffix>$(SynercodingProjectCategory)/$(MSBuildProjectName)</BaseArtifactsPathSuffix>
+    <BaseIntermediateOutputPath>$(BaseArtifactsPath)obj/$(BaseArtifactsPathSuffix)/</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(BaseArtifactsPath)bin/$(BaseArtifactsPathSuffix)/</BaseOutputPath>
+    <PackageOutputPath>$(BaseArtifactsPath)pkg/$(Configuration)/</PackageOutputPath>
   </PropertyGroup>
 
   <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DebugType>portable</DebugType>
     <DebugType Condition="'$(codecov)' != ''">full</DebugType>
+    <SignAssembly>false</SignAssembly>
+    <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Authors>Gerard Gunnewijk</Authors>
+    <Company>Synercoding</Company>
+    <Copyright>Copyright © $(Company)</Copyright>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <NeutralLanguage>en</NeutralLanguage>
+    <OverwriteReadOnlyFiles>true</OverwriteReadOnlyFiles>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/synercoder/ClaudeApprover</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/synercoder/ClaudeApprover</PackageProjectUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <UseSharedCompilation>true</UseSharedCompilation>
   </PropertyGroup>
 
-  <PropertyGroup Label="CI configurations" Condition="'$(ContinuousIntegrationBuild)' == ''">
-    <ContinuousIntegrationBuild>false</ContinuousIntegrationBuild>
-    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'
-       or '$(TF_BUILD)' == 'true'
-       or '$(TEAMCITY_VERSION)' != ''
-       or '$(APPVEYOR)' != ''
-       or '$(BuildRunner)' == 'MyGet'
-       or '$(JENKINS_URL)' != ''
-       or '$(TRAVIS)' == 'true'
-       or '$(BUDDY)' == 'true'
-       or '$(CODEBUILD_CI)' == 'true'">
-      true
-    </ContinuousIntegrationBuild>
-  </PropertyGroup>
-
-  <PropertyGroup Label="Framework configurations">
+  <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-  </PropertyGroup>
-
-  <PropertyGroup Label="C# configurations">
-    <LangVersion>14</LangVersion>
+    <LangVersion>preview</LangVersion>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Features>strict</Features>
     <ImplicitUsings>enable</ImplicitUsings>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <AnalysisLevel>9-default</AnalysisLevel>
-  </PropertyGroup>
-
-  <PropertyGroup Label="Globalization configurations">
-    <NeutralLanguage>en</NeutralLanguage>
-  </PropertyGroup>
-
-  <PropertyGroup Label="Nuget package configurations">
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <EmbedUntrackedSources>true</EmbedUntrackedSources>
-    <IncludeSymbols>true</IncludeSymbols>
-    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
-
-    <Company>Synercoding</Company>
-    <Copyright>Copyright © $(Company)</Copyright>
-    <Authors>Synercoder</Authors>
-
-    <RepositoryUrl>https://github.com/synercoder/ClaudeApprover</RepositoryUrl>
-    <RepositoryType>Git</RepositoryType>
-    <PackageProjectUrl>https://github.com/synercoder/ClaudeApprover</PackageProjectUrl>
+    <AnalysisLevel>10-default</AnalysisLevel>
   </PropertyGroup>
 
 </Project>

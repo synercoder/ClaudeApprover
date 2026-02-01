@@ -1,9 +1,5 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <PackageId>Synercoding.ClaudeApprover</PackageId>
-    <Product>Synercoding.ClaudeApprover</Product>
-    <Description>A library that will help with quickly creating a quick Claude approver script.</Description>
-  </PropertyGroup>
-
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  
+  <Import Project="$(MSBuildThisFileDirectory)\PackageDetails.props" />
+  
 </Project>
