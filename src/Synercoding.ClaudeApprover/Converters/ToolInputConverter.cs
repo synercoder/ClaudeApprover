@@ -38,6 +38,7 @@ public class ToolInputConverter : JsonConverter<ToolInput>
             "TaskCreate" => ToolInputJsonContext.Default.TaskCreate,
             "TaskUpdate" => ToolInputJsonContext.Default.TaskUpdate,
             "ExitPlanMode" => ToolInputJsonContext.Default.ExitPlanMode,
+            "Grep" => ToolInputJsonContext.Default.GrepInput,
             _ => ToolInputJsonContext.Default.UnknownToolInput
         };
 
