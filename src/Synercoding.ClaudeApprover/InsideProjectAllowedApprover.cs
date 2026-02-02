@@ -144,10 +144,6 @@ public class InsideProjectAllowedApprover : BaseApprover
     /// <returns>A <see cref="PreToolUseOutput"/> with the permission decision.</returns>
     public virtual PreToolUseOutput? Handle(string filePath, string currentWorkingDirectory)
     {
-        var projectFolder = FindProjectFolder();
-        if (projectFolder is null)
-            return Ask(CANT_DETERMINE_PROJECT_ROOT);
-
         var gitSegment = $"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}";
         var gitEnd = $"{Path.DirectorySeparatorChar}.git";
 
@@ -156,6 +152,22 @@ public class InsideProjectAllowedApprover : BaseApprover
 
         if (filePath.Contains(gitSegment))
             return Deny(NOT_ALLOWED_IN_GIT_FOLDER);
+
+        if (!Path.IsPathRooted(filePath))
+            filePath = Path.GetFullPath(Path.Combine(currentWorkingDirectory, filePath));
+
+        var fileInfo = new FileInfo(filePath);
+        if (fileInfo.Directory?.Name == "plans"
+            && fileInfo.Directory?.Parent?.Name == ".claude"
+            && fileInfo.Extension == ".md")
+        {
+            // Creating a plan is allowed even if the plan is located outside the project folder
+            return Allow();
+        }
+
+        var projectFolder = FindProjectFolder();
+        if (projectFolder is null)
+            return Ask(CANT_DETERMINE_PROJECT_ROOT);
 
         if (!_isInsideRoot(filePath, projectFolder))
             return Deny(NOT_ALLOWED_OUTSIDE_ROOT);
