@@ -20,6 +20,7 @@ namespace Synercoding.ClaudeApprover.Converters;
 [JsonSerializable(typeof(TaskCreate))]
 [JsonSerializable(typeof(TaskUpdate))]
 [JsonSerializable(typeof(ExitPlanMode))]
+[JsonSerializable(typeof(GrepInput))]
 [JsonSerializable(typeof(UnknownToolInput))]
 [JsonSerializable(typeof(JsonElement))]
 public partial class ToolInputJsonContext : JsonSerializerContext
