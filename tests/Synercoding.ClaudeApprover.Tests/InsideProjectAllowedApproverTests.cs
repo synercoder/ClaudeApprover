@@ -138,7 +138,6 @@ public class InsideProjectAllowedApproverTests
     [InlineData("ls -la")]
     [InlineData("grep foo bar.txt")]
     [InlineData("cat file.txt")]
-    [InlineData("dotnet build")]
     [InlineData("echo hello")]
     [InlineData("find . -name *.cs")]
     [InlineData("pwd")]

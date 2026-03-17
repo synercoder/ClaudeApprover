@@ -30,9 +30,9 @@ The library targets **net10.0**.
 
 ### 1. Create an approver script
 
-Create a C# file (e.g. `.claude/Approver.cs`) that uses the library. You can use the built-in `InsideProjectAllowedApprover` which restricts all file and bash operations to within the project root, or subclass `BaseApprover` for full control.
+Create a C# file (e.g. `.claude/hooks/Approver.cs`) that uses the library. You can use the built-in `InsideProjectAllowedApprover` which restricts all file and bash operations to within the project root, or subclass `BaseApprover` for full control.
 
-A working example is available at [`.claude/Approver.cs`](.claude/Approver.cs):
+A working example is available at [`.claude/hooks/Approver.cs`](.claude/hooks/Approver.cs):
 
 ```csharp
 #:sdk Microsoft.NET.Sdk
@@ -66,7 +66,25 @@ return 0;
 
 ### 2. Configure the hook
 
-Add a `PreToolUse` hook in your `.claude/settings.json` that runs the script via `dotnet run`:
+Create a `.claude/hooks/run-approver.cjs` wrapper script that invokes the approver via `dotnet run`:
+
+```javascript
+const { execFileSync } = require("child_process");
+const { join } = require("path");
+
+const workDir = join(process.env.CLAUDE_PROJECT_DIR, ".claude", "hooks");
+
+try {
+  execFileSync("dotnet", ["run", "-v", "q", "./Approver.cs"], {
+    cwd: workDir,
+    stdio: "inherit",
+  });
+} catch (err) {
+  process.exit(err.status ?? 1);
+}
+```
+
+Then add a `PreToolUse` hook in your `.claude/settings.json` that runs the wrapper:
 
 ```json
 {
@@ -77,7 +95,7 @@ Add a `PreToolUse` hook in your `.claude/settings.json` that runs the script via
         "hooks": [
           {
             "type": "command",
-            "command": "dotnet run -v q \"$CLAUDE_PROJECT_DIR\"/.claude/Approver.cs"
+            "command": "node -e \"require(require('path').join(process.env.CLAUDE_PROJECT_DIR,'.claude','hooks','run-approver.cjs'))\""
           }
         ]
       }
@@ -86,7 +104,19 @@ Add a `PreToolUse` hook in your `.claude/settings.json` that runs the script via
 }
 ```
 
-The `matcher` is set to `*` so the hook runs for every tool invocation. The `-v q` flag suppresses MSBuild output so only the JSON response is written to stdout.
+The Node.js wrapper ensures the hook works correctly cross-platform. Windows and Linux have different syntax for referencing environment variables in shell commands (`%VAR%` vs `$VAR`), which is needed to resolve the hook script path via `CLAUDE_PROJECT_DIR`. Using a Node.js wrapper with `process.env` and `path.join` avoids this issue entirely. The `matcher` is set to `*` so the hook runs for every tool invocation. The `-v q` flag suppresses MSBuild output so only the JSON response is written to stdout.
+
+If you only use the hook in a `.claude/settings.local.json` (which is not checked into source control and thus platform-specific), you can skip the wrapper and invoke `dotnet run` directly:
+
+On Linux / macOS:
+```json
+"command": "cd \"$CLAUDE_PROJECT_DIR\"/.claude/hooks && dotnet run -v q ./Approver.cs"
+```
+
+On Windows:
+```json
+"command": "cd /d \"%CLAUDE_PROJECT_DIR%\\.claude\\hooks\" && dotnet run -v q Approver.cs"
+```
 
 ### 3. Customize approval logic
 
@@ -126,12 +156,14 @@ The set of recognized bash commands can be extended by adding entries to the `Co
 
 ```csharp
 var approver = new InsideProjectAllowedApprover();
-approver.CommandApprovers.Add("dotnet", (CommandInfo info, out string? reason, out string? newWorkingDir) =>
-{
-    reason = null;
-    newWorkingDir = null;
-    return CommandPermission.Allow;
-});
+approver.CommandApprovers["dotnet"] = InsideProjectAllowedApprover.AllowCommand;
+```
+
+You can also add custom logic for specific mcp servers:
+
+```csharp
+var approver = new InsideProjectAllowedApprover();
+approver.McpApprovers["playwright"] = (tool, input) => BaseApprover.Allow();
 ```
 
 ## Project Root Detection

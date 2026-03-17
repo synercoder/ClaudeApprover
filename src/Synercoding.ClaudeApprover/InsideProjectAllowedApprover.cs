@@ -1,6 +1,7 @@
 using Synercoding.ClaudeApprover.BashParser;
 using Synercoding.ClaudeApprover.Input;
 using Synercoding.ClaudeApprover.Output;
+using System.Text.Json;
 
 namespace Synercoding.ClaudeApprover;
 
@@ -18,6 +19,15 @@ public class InsideProjectAllowedApprover : BaseApprover
     /// <returns>The permission decision for the command.</returns>
     public delegate CommandPermission CommandApprover(CommandInfo commandInfo, out string? reason, out string? newWorkingDirectory);
 
+    /// <summary>
+    /// Represents a method that determines whether a tool input should be approved for use, based on the provided input
+    /// and additional context.
+    /// </summary>
+    /// <param name="input">The tool input to evaluate for approval.</param>
+    /// <param name="mcpInput">A JSON element containing additional context or parameters relevant to the approval decision.</param>
+    /// <returns>A <see cref="PreToolUseOutput"/> instance that contains the output result.</returns>
+    public delegate PreToolUseOutput? McpApprover(ToolInput input, JsonElement mcpInput);
+
     private const string NOT_ALLOWED_OUTSIDE_ROOT = "You are not allowed outside the root project folder.";
     private const string NOT_ALLOWED_IN_GIT_FOLDER = "You are not allowed inside the git folder.";
     private const string CANT_DETERMINE_PROJECT_ROOT = "Approver tool not configured correctly, can't determine project root.";
@@ -27,31 +37,41 @@ public class InsideProjectAllowedApprover : BaseApprover
     /// </summary>
     public InsideProjectAllowedApprover()
     {
-        CommandApprovers.Add("ls", AllowCommand);
-        CommandApprovers.Add("tree", AllowCommand);
+        CommandApprovers.Add("awk", AllowCommand);
+        CommandApprovers.Add("base32", AllowCommand);
+        CommandApprovers.Add("base64", AllowCommand);
+        CommandApprovers.Add("cat", AllowCommand);
+        CommandApprovers.Add("cd", HandleCd);
         CommandApprovers.Add("echo", AllowCommand);
+        CommandApprovers.Add("file", AllowCommand);
         CommandApprovers.Add("find", AllowCommand);
-        CommandApprovers.Add("sort", AllowCommand);
         CommandApprovers.Add("grep", AllowCommand);
         CommandApprovers.Add("head", AllowCommand);
-        CommandApprovers.Add("wc", AllowCommand);
-        CommandApprovers.Add("cat", AllowCommand);
-        CommandApprovers.Add("tail", AllowCommand);
+        CommandApprovers.Add("ifconfig", AllowCommand);
         CommandApprovers.Add("jq", AllowCommand);
-        CommandApprovers.Add("base64", AllowCommand);
-        CommandApprovers.Add("awk", AllowCommand);
+        CommandApprovers.Add("ls", AllowCommand);
+        CommandApprovers.Add("pgrep", AllowCommand);
+        CommandApprovers.Add("ps", AllowCommand);
         CommandApprovers.Add("pwd", AllowCommand);
-        CommandApprovers.Add("dotnet", AllowCommand);
-
-        CommandApprovers.Add("cd", HandleCd);
-        CommandApprovers.Add("sed", HandleSed);
         CommandApprovers.Add("rm", HandleRm);
+        CommandApprovers.Add("sed", HandleSed);
+        CommandApprovers.Add("sort", AllowCommand);
+        CommandApprovers.Add("tree", AllowCommand);
+        CommandApprovers.Add("tail", AllowCommand);
+        CommandApprovers.Add("wc", AllowCommand);
+        CommandApprovers.Add("which", AllowCommand);
+
     }
 
     /// <summary>
     /// Gets the dictionary mapping command names to their approval handlers.
     /// </summary>
     public IDictionary<string, CommandApprover> CommandApprovers { get; } = new Dictionary<string, CommandApprover>();
+
+    /// <summary>
+    /// Gets the dictionary mapping mcp names to their approval handlers.
+    /// </summary>
+    public IDictionary<string, McpApprover> McpApprovers { get; } = new Dictionary<string, McpApprover>();
 
     /// <inheritdoc />
     public override PreToolUseOutput? Handle(ToolInput input, ReadInput read)
@@ -92,6 +112,20 @@ public class InsideProjectAllowedApprover : BaseApprover
     /// <inheritdoc />
     public override PreToolUseOutput? Handle(ToolInput input, ExitPlanMode exitPlanMode)
         => Allow();
+
+    /// <inheritdoc />
+    public override PreToolUseOutput? Handle(ToolInput input, UnknownToolInput unknownTool)
+    {
+        if (input.ToolName.StartsWith("mcp__"))
+        {
+            var mcp = input.ToolName.Split("__")[1];
+
+            if (McpApprovers.TryGetValue(mcp, out var mcpApprover))
+                return mcpApprover(input, unknownTool.RawData);
+        }
+
+        return null;
+    }
 
     /// <inheritdoc />
     public override PreToolUseOutput? Handle(ToolInput input, BashInput bash)
@@ -182,7 +216,7 @@ public class InsideProjectAllowedApprover : BaseApprover
     /// <param name="reason">Always <c>null</c>.</param>
     /// <param name="newWorkingDirectory">Always <c>null</c>.</param>
     /// <returns><see cref="CommandPermission.Allow"/>.</returns>
-    protected virtual CommandPermission AllowCommand(CommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
+    public static CommandPermission AllowCommand(CommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
     {
         reason = null;
         newWorkingDirectory = null;

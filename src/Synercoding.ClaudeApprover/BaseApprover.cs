@@ -30,9 +30,19 @@ public class BaseApprover
             TaskCreate taskCreate => Handle(input, taskCreate),
             TaskUpdate taskUpdate => Handle(input, taskUpdate),
             ExitPlanMode exitPlanMode => Handle(input, exitPlanMode),
+            UnknownToolInput unknownToolInput => Handle(input, unknownToolInput),
             _ => null
         };
     }
+
+    /// <summary>
+    /// Handles a <see cref="UnknownToolInput"/> tool invocation.
+    /// </summary>
+    /// <param name="input">The tool input envelope.</param>
+    /// <param name="unknownTool">The unknown tool input (wraps a <see cref="System.Text.Json.JsonElement"/>).</param>
+    /// <returns>A <see cref="PreToolUseOutput"/> with the permission decision, or <c>null</c> to take no action.</returns>
+    public virtual PreToolUseOutput? Handle(ToolInput input, UnknownToolInput unknownTool)
+        => null;
 
     /// <summary>
     /// Handles a <see cref="WebFetchInput"/> tool invocation.
@@ -196,7 +206,7 @@ public class BaseApprover
     /// </summary>
     /// <param name="reason">An optional reason for asking.</param>
     /// <returns>A <see cref="PreToolUseOutput"/> with <see cref="PermissionDecision.Ask"/>.</returns>
-    protected static PreToolUseOutput Ask(string? reason = null)
+    public static PreToolUseOutput Ask(string? reason = null)
     {
         return new PreToolUseOutput()
         {
@@ -213,7 +223,7 @@ public class BaseApprover
     /// </summary>
     /// <param name="reason">An optional reason for denying.</param>
     /// <returns>A <see cref="PreToolUseOutput"/> with <see cref="PermissionDecision.Deny"/>.</returns>
-    protected static PreToolUseOutput Deny(string? reason = null)
+    public static PreToolUseOutput Deny(string? reason = null)
     {
         return new PreToolUseOutput()
         {
@@ -230,7 +240,7 @@ public class BaseApprover
     /// </summary>
     /// <param name="reason">An optional reason for allowing.</param>
     /// <returns>A <see cref="PreToolUseOutput"/> with <see cref="PermissionDecision.Allow"/>.</returns>
-    protected static PreToolUseOutput Allow(string? reason = null)
+    public static PreToolUseOutput Allow(string? reason = null)
     {
         return new PreToolUseOutput()
         {
