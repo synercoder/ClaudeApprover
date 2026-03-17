@@ -11,7 +11,7 @@
     <Title>Synercoding.ClaudeApprover</Title>
     <Description>Contains classes with which you can create a dotnet claude approver for the PreToolUse hook.</Description>
     <PackageTags>Claude</PackageTags>
-    <PackageReleaseNotes>First public release, see README.md for usage guidelines.</PackageReleaseNotes>
+    <PackageReleaseNotes>Plan outside root, GrepInput &amp; MCP support, see README.md for usage guidelines.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
