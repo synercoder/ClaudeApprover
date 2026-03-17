@@ -10,7 +10,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "dotnet run -v q \"$CLAUDE_PROJECT_DIR\"/.claude/Approver.cs"
+            "command": "node -e \"require(require('path').join(process.env.CLAUDE_PROJECT_DIR,'.claude','hooks','run-approver.cjs'))\""
           }
         ]
       }

@@ -12,8 +12,11 @@
     <File Path="README.md" />
   </Folder>
   <Folder Name="/root/.claude/">
-    <File Path=".claude/Approver.cs" />
     <File Path=".claude/settings.json" />
+  </Folder>
+  <Folder Name="/root/.claude/hooks/">
+    <File Path=".claude/hooks/Approver.cs" />
+    <File Path=".claude/hooks/run-approver.cjs" />
   </Folder>
   <Folder Name="/root/.github/" />
   <Folder Name="/root/.github/workflows/">
