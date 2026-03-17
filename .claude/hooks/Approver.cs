@@ -1,5 +1,5 @@
 #:sdk Microsoft.NET.Sdk
-#:project ../src/Synercoding.ClaudeApprover
+#:project ../../src/Synercoding.ClaudeApprover
 
 using Synercoding.ClaudeApprover;
 using Synercoding.ClaudeApprover.Converters;
