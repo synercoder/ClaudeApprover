@@ -178,6 +178,10 @@ public class InsideProjectAllowedApprover : BaseApprover
     /// <returns>A <see cref="PreToolUseOutput"/> with the permission decision.</returns>
     public virtual PreToolUseOutput? Handle(string filePath, string currentWorkingDirectory)
     {
+        // Normalize paths to use consistent directory separators and resolve relative segments
+        currentWorkingDirectory = PathNormalizer.Normalize(currentWorkingDirectory);
+        filePath = PathNormalizer.Normalize(currentWorkingDirectory, filePath);
+
         var gitSegment = $"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}";
         var gitEnd = $"{Path.DirectorySeparatorChar}.git";
 
@@ -186,9 +190,6 @@ public class InsideProjectAllowedApprover : BaseApprover
 
         if (filePath.Contains(gitSegment))
             return Deny(NOT_ALLOWED_IN_GIT_FOLDER);
-
-        if (!Path.IsPathRooted(filePath))
-            filePath = Path.GetFullPath(Path.Combine(currentWorkingDirectory, filePath));
 
         var fileInfo = new FileInfo(filePath);
         if (fileInfo.Directory?.Name == "plans"
@@ -203,7 +204,7 @@ public class InsideProjectAllowedApprover : BaseApprover
         if (projectFolder is null)
             return Ask(CANT_DETERMINE_PROJECT_ROOT);
 
-        if (!_isInsideRoot(filePath, projectFolder))
+        if (!PathNormalizer.IsInsideRoot(filePath, projectFolder))
             return Deny(NOT_ALLOWED_OUTSIDE_ROOT);
 
         return Allow();
@@ -248,7 +249,7 @@ public class InsideProjectAllowedApprover : BaseApprover
         }
 
         var newPath = _buildPath(commandInfo.WorkingDirectory, commandInfo.Command.Arguments.Single());
-        if (!_isInsideRoot(newPath, commandInfo.ProjectRoot))
+        if (!PathNormalizer.IsInsideRoot(newPath, commandInfo.ProjectRoot))
         {
             reason = NOT_ALLOWED_OUTSIDE_ROOT;
             return CommandPermission.Deny;
@@ -284,7 +285,7 @@ public class InsideProjectAllowedApprover : BaseApprover
                 reason = NOT_ALLOWED_IN_GIT_FOLDER;
                 return CommandPermission.Deny;
             }
-            if (!_isInsideRoot(sedFile, commandInfo.ProjectRoot))
+            if (!PathNormalizer.IsInsideRoot(sedFile, commandInfo.ProjectRoot))
             {
                 reason = NOT_ALLOWED_OUTSIDE_ROOT;
                 return CommandPermission.Deny;
@@ -332,7 +333,7 @@ public class InsideProjectAllowedApprover : BaseApprover
                 reason = NOT_ALLOWED_IN_GIT_FOLDER;
                 return CommandPermission.Deny;
             }
-            if (!_isInsideRoot(rmOption, commandInfo.ProjectRoot))
+            if (!PathNormalizer.IsInsideRoot(rmOption, commandInfo.ProjectRoot))
             {
                 reason = NOT_ALLOWED_OUTSIDE_ROOT;
                 return CommandPermission.Deny;
@@ -361,18 +362,11 @@ public class InsideProjectAllowedApprover : BaseApprover
             || argument == "--version";
     }
 
-    private static bool _isInsideRoot(string fullPath, string projectRoot)
-    {
-        var normalizedRoot = Path.TrimEndingDirectorySeparator(projectRoot) + Path.DirectorySeparatorChar;
-        return fullPath.StartsWith(normalizedRoot, StringComparison.Ordinal)
-            || fullPath == Path.TrimEndingDirectorySeparator(projectRoot);
-    }
-
     private static string _buildPath(string currentWorkingDirectory, string pathArgument)
     {
         if (pathArgument[0] == '"' && pathArgument[^1] == '"')
             pathArgument = pathArgument[1..^1];
 
-        return Path.GetFullPath(Path.Combine(currentWorkingDirectory, pathArgument));
+        return PathNormalizer.Normalize(currentWorkingDirectory, pathArgument);
     }
 }
