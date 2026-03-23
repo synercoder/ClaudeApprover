@@ -7,6 +7,8 @@ try {
   execFileSync("dotnet", ["run", "-v", "q", "./Approver.cs"], {
     cwd: workDir,
     stdio: "inherit",
+    shell: true,
+    windowsHide: true,
   });
 } catch (err) {
   process.exit(err.status ?? 1);
