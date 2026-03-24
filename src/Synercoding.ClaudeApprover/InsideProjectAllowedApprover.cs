@@ -102,6 +102,10 @@ public class InsideProjectAllowedApprover : BaseApprover
         => Allow();
 
     /// <inheritdoc />
+    public override PreToolUseOutput? Handle(ToolInput input, GrepInput grep)
+        => Allow();
+
+    /// <inheritdoc />
     public override PreToolUseOutput? Handle(ToolInput input, TodoWriteInput todo)
         => Allow();
 

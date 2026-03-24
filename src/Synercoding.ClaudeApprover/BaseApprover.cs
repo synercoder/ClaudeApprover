@@ -19,6 +19,7 @@ public class BaseApprover
         return input.Input switch
         {
             BashInput bash => Handle(input, bash),
+            GrepInput grep => Handle(input, grep),
             GlobInput glob => Handle(input, glob),
             ReadInput read => Handle(input, read),
             EditInput edit => Handle(input, edit),
@@ -60,6 +61,15 @@ public class BaseApprover
     /// <param name="bash">The bash input.</param>
     /// <returns>A <see cref="PreToolUseOutput"/> with the permission decision, or <c>null</c> to take no action.</returns>
     public virtual PreToolUseOutput? Handle(ToolInput input, BashInput bash)
+        => null;
+
+    /// <summary>
+    /// Handles a <see cref="GrepInput"/> tool invocation.
+    /// </summary>
+    /// <param name="input">The tool input envelope.</param>
+    /// <param name="grep">The grep input.</param>
+    /// <returns>A <see cref="PreToolUseOutput"/> with the permission decision, or <c>null</c> to take no action.</returns>
+    public virtual PreToolUseOutput? Handle(ToolInput input, GrepInput grep)
         => null;
 
     /// <summary>
