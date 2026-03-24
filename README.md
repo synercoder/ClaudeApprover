@@ -159,6 +159,32 @@ var approver = new InsideProjectAllowedApprover();
 approver.CommandApprovers["dotnet"] = InsideProjectAllowedApprover.AllowCommand;
 ```
 
+#### Additional Directories
+
+By default, all file and bash operations are restricted to the project root. You can allow access to additional directories (e.g. sibling projects) using the `AdditionalDirectories` property. Paths can be absolute or relative to the project root:
+
+```csharp
+var approver = new InsideProjectAllowedApprover();
+approver.AdditionalDirectories.Add("../sister-project");
+approver.AdditionalDirectories.Add("/opt/shared-libs");
+```
+
+The approver can also import additional directories from Claude's own settings files. When `ImportAdditionalDirsFromClaude` is `true` (the default), it reads the `additionalDirectories` JSON array from `.claude/settings.json` and `.claude/settings.local.json`:
+
+```json
+{
+  "additionalDirectories": ["../sister-project", "../shared-utils"]
+}
+```
+
+To disable importing from Claude settings:
+
+```csharp
+approver.ImportAdditionalDirsFromClaude = false;
+```
+
+#### MCP Approvers
+
 You can also add custom logic for specific mcp servers:
 
 ```csharp

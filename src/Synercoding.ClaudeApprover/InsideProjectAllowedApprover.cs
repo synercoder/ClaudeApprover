@@ -73,6 +73,18 @@ public class InsideProjectAllowedApprover : BaseApprover
     /// </summary>
     public IDictionary<string, McpApprover> McpApprovers { get; } = new Dictionary<string, McpApprover>();
 
+    /// <summary>
+    /// Gets the list of additional directories (absolute or relative to the project root) that should be allowed for file and bash operations.
+    /// </summary>
+    public List<string> AdditionalDirectories { get; } = new();
+
+    /// <summary>
+    /// Gets or sets whether to import additional directories from the Claude settings files
+    /// (<c>.claude/settings.json</c> and <c>.claude/settings.local.json</c>).
+    /// Defaults to <c>true</c>.
+    /// </summary>
+    public bool ImportAdditionalDirsFromClaude { get; set; } = true;
+
     /// <inheritdoc />
     public override PreToolUseOutput? Handle(ToolInput input, ReadInput read)
         => Handle(read.FilePath, input.CurrentWorkingDirectory);
@@ -204,7 +216,7 @@ public class InsideProjectAllowedApprover : BaseApprover
         if (projectFolder is null)
             return Ask(CANT_DETERMINE_PROJECT_ROOT);
 
-        if (!PathNormalizer.IsInsideRoot(filePath, projectFolder))
+        if (!IsInsideAllowedRoot(filePath, projectFolder))
             return Deny(NOT_ALLOWED_OUTSIDE_ROOT);
 
         return Allow();
@@ -249,7 +261,7 @@ public class InsideProjectAllowedApprover : BaseApprover
         }
 
         var newPath = _buildPath(commandInfo.WorkingDirectory, commandInfo.Command.Arguments.Single());
-        if (!PathNormalizer.IsInsideRoot(newPath, commandInfo.ProjectRoot))
+        if (!IsInsideAllowedRoot(newPath, commandInfo.ProjectRoot))
         {
             reason = NOT_ALLOWED_OUTSIDE_ROOT;
             return CommandPermission.Deny;
@@ -285,7 +297,7 @@ public class InsideProjectAllowedApprover : BaseApprover
                 reason = NOT_ALLOWED_IN_GIT_FOLDER;
                 return CommandPermission.Deny;
             }
-            if (!PathNormalizer.IsInsideRoot(sedFile, commandInfo.ProjectRoot))
+            if (!IsInsideAllowedRoot(sedFile, commandInfo.ProjectRoot))
             {
                 reason = NOT_ALLOWED_OUTSIDE_ROOT;
                 return CommandPermission.Deny;
@@ -333,7 +345,7 @@ public class InsideProjectAllowedApprover : BaseApprover
                 reason = NOT_ALLOWED_IN_GIT_FOLDER;
                 return CommandPermission.Deny;
             }
-            if (!PathNormalizer.IsInsideRoot(rmOption, commandInfo.ProjectRoot))
+            if (!IsInsideAllowedRoot(rmOption, commandInfo.ProjectRoot))
             {
                 reason = NOT_ALLOWED_OUTSIDE_ROOT;
                 return CommandPermission.Deny;
@@ -341,6 +353,82 @@ public class InsideProjectAllowedApprover : BaseApprover
         }
 
         return CommandPermission.Allow;
+    }
+
+    /// <summary>
+    /// Determines whether a path is inside the project root or any of the allowed additional directories.
+    /// </summary>
+    /// <param name="fullPath">The normalized path to check.</param>
+    /// <param name="projectRoot">The project root directory.</param>
+    /// <returns><c>true</c> if the path is inside any allowed root; otherwise, <c>false</c>.</returns>
+    protected bool IsInsideAllowedRoot(string fullPath, string projectRoot)
+    {
+        if (PathNormalizer.IsInsideRoot(fullPath, projectRoot))
+            return true;
+
+        foreach (var dir in AdditionalDirectories)
+        {
+            var resolved = PathNormalizer.Normalize(projectRoot, dir);
+            if (PathNormalizer.IsInsideRoot(fullPath, resolved))
+                return true;
+        }
+
+        if (ImportAdditionalDirsFromClaude)
+        {
+            foreach (var dir in _getClaudeAdditionalDirectories(projectRoot))
+            {
+                var resolved = PathNormalizer.Normalize(projectRoot, dir);
+                if (PathNormalizer.IsInsideRoot(fullPath, resolved))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private IReadOnlyList<string>? _claudeAdditionalDirs;
+
+    private IReadOnlyList<string> _getClaudeAdditionalDirectories(string projectRoot)
+    {
+        if (_claudeAdditionalDirs is not null)
+            return _claudeAdditionalDirs;
+
+        var dirs = new HashSet<string>(StringComparer.Ordinal);
+
+        var settingsFiles = new[]
+        {
+            Path.Combine(projectRoot, ".claude", "settings.json"),
+            Path.Combine(projectRoot, ".claude", "settings.local.json"),
+        };
+
+        foreach (var settingsFile in settingsFiles)
+        {
+            if (!File.Exists(settingsFile))
+                continue;
+
+            try
+            {
+                var json = File.ReadAllText(settingsFile);
+                using var doc = JsonDocument.Parse(json);
+
+                if (doc.RootElement.TryGetProperty("additionalDirectories", out var additionalDirs)
+                    && additionalDirs.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in additionalDirs.EnumerateArray())
+                    {
+                        if (item.ValueKind == JsonValueKind.String && item.GetString() is string dir)
+                            dirs.Add(dir);
+                    }
+                }
+            }
+            catch
+            {
+                // If the settings file can't be read or parsed, skip it
+            }
+        }
+
+        _claudeAdditionalDirs = dirs.ToList();
+        return _claudeAdditionalDirs;
     }
 
     private static bool _isRmFlag(string argument)

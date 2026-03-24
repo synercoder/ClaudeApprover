@@ -316,6 +316,170 @@ public class InsideProjectAllowedApproverTests
         result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Ask);
     }
 
+    // --- Additional directories tests ---
+
+    private static readonly string _additionalDir = Path.GetFullPath(Path.Combine(_projectRoot, "..", "sister-project"));
+
+    [Fact]
+    public void Handle_ReadInAdditionalDirectory_Allows()
+    {
+        var approver = _createApprover();
+        approver.AdditionalDirectories.Add("../sister-project");
+        var input = _createToolInput(new ReadInput { FilePath = Path.Combine(_additionalDir, "file.cs") }, "Read");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_WriteInAdditionalDirectory_Allows()
+    {
+        var approver = _createApprover();
+        approver.AdditionalDirectories.Add("../sister-project");
+        var input = _createToolInput(new WriteInput { FilePath = Path.Combine(_additionalDir, "file.cs"), Content = "test" }, "Write");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_EditInAdditionalDirectory_Allows()
+    {
+        var approver = _createApprover();
+        approver.AdditionalDirectories.Add("../sister-project");
+        var input = _createToolInput(new EditInput { FilePath = Path.Combine(_additionalDir, "file.cs") }, "Edit");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_ReadOutsideProjectAndAdditionalDirs_Denies()
+    {
+        var approver = _createApprover();
+        approver.AdditionalDirectories.Add("../sister-project");
+        var input = _createToolInput(new ReadInput { FilePath = Path.GetFullPath(Path.Combine(Path.GetPathRoot(Environment.CurrentDirectory)!, "etc", "passwd")) }, "Read");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_CdIntoAdditionalDirectory_Allows()
+    {
+        var approver = _createApprover();
+        approver.AdditionalDirectories.Add("../sister-project");
+        var input = _createToolInput(new BashInput { Command = $"cd {_additionalDir}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_RmInAdditionalDirectory_Allows()
+    {
+        var approver = _createApprover();
+        approver.AdditionalDirectories.Add("../sister-project");
+        var input = _createToolInput(new BashInput { Command = $"rm {Path.Combine(_additionalDir, "temp.txt")}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_SedInPlaceInAdditionalDirectory_Allows()
+    {
+        var approver = _createApprover();
+        approver.AdditionalDirectories.Add("../sister-project");
+        var input = _createToolInput(new BashInput { Command = $"sed -i s/foo/bar/g {Path.Combine(_additionalDir, "file.cs")}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_ReadInClaudeSettingsAdditionalDirectory_Allows()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"approver-test-{Guid.NewGuid():N}");
+        var claudeDir = Path.Combine(tempRoot, ".claude");
+        var sisterDir = Path.Combine(tempRoot, "..", "claude-sister");
+        Directory.CreateDirectory(claudeDir);
+
+        try
+        {
+            File.WriteAllText(Path.Combine(claudeDir, "settings.json"), """{"additionalDirectories": ["../claude-sister"]}""");
+
+            var approver = _createApprover(tempRoot);
+            var input = _createToolInput(new ReadInput { FilePath = Path.Combine(sisterDir, "file.txt") }, "Read");
+
+            var result = approver.Handle(input);
+
+            result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+        }
+        finally
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Handle_ReadInClaudeSettingsAdditionalDirectory_ImportDisabled_Denies()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"approver-test-{Guid.NewGuid():N}");
+        var claudeDir = Path.Combine(tempRoot, ".claude");
+        var sisterDir = Path.Combine(tempRoot, "..", "claude-sister");
+        Directory.CreateDirectory(claudeDir);
+
+        try
+        {
+            File.WriteAllText(Path.Combine(claudeDir, "settings.json"), """{"additionalDirectories": ["../claude-sister"]}""");
+
+            var approver = _createApprover(tempRoot);
+            approver.ImportAdditionalDirsFromClaude = false;
+            var input = _createToolInput(new ReadInput { FilePath = Path.Combine(sisterDir, "file.txt") }, "Read");
+
+            var result = approver.Handle(input);
+
+            result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+        }
+        finally
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Handle_ReadInSettingsLocalAdditionalDirectory_Allows()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"approver-test-{Guid.NewGuid():N}");
+        var claudeDir = Path.Combine(tempRoot, ".claude");
+        var sisterDir = Path.Combine(tempRoot, "..", "local-sister");
+        Directory.CreateDirectory(claudeDir);
+
+        try
+        {
+            File.WriteAllText(Path.Combine(claudeDir, "settings.local.json"), """{"additionalDirectories": ["../local-sister"]}""");
+
+            var approver = _createApprover(tempRoot);
+            var input = _createToolInput(new ReadInput { FilePath = Path.Combine(sisterDir, "file.txt") }, "Read");
+
+            var result = approver.Handle(input);
+
+            result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+        }
+        finally
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
     // --- Testable subclass ---
 
     private class TestableApprover : InsideProjectAllowedApprover

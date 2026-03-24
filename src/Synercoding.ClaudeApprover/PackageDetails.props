@@ -11,7 +11,7 @@
     <Title>Synercoding.ClaudeApprover</Title>
     <Description>Contains classes with which you can create a dotnet claude approver for the PreToolUse hook.</Description>
     <PackageTags>Claude</PackageTags>
-    <PackageReleaseNotes>Normalizes paths, so Approver works on Windows native.</PackageReleaseNotes>
+    <PackageReleaseNotes>Added support for additional directories in InsideProjectAllowedApprover. Allows file and bash operations in directories outside the project root via the AdditionalDirectories property or by importing from Claude settings files (.claude/settings.json and .claude/settings.local.json).</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
