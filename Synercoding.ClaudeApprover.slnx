@@ -22,6 +22,9 @@
   <Folder Name="/root/.github/workflows/">
     <File Path=".github/workflows/dotnet-core.yml" />
   </Folder>
+  <Folder Name="/root/apps/">
+    <Project Path="apps/ConsoleTester/ConsoleTester.csproj" Id="60719bd2-cfd0-401a-a821-fed8ff707c6f" />
+  </Folder>
   <Folder Name="/root/src/">
     <File Path="src/Directory.Build.props" />
     <File Path="src/Directory.Build.targets" />
