@@ -17,6 +17,7 @@ if (input is null)
 
 var approver = new InsideProjectAllowedApprover();
 approver.CommandApprovers["dotnet"] = InsideProjectAllowedApprover.AllowCommand;
+approver.AdditionalDirectories.Add("~/.claude");
 
 var output = approver.Handle(input);
 

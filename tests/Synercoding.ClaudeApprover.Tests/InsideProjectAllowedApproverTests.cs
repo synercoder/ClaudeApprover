@@ -558,6 +558,50 @@ public class InsideProjectAllowedApproverTests
         }
     }
 
+    // --- Tilde path in AdditionalDirectories tests ---
+
+    [Fact]
+    public void Handle_ClaudeProfileDir_NotInAdditionalDirs_Denies()
+    {
+        var approver = _createApprover();
+        var claudePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".claude", "screenshots", "test.png");
+        var input = _createToolInput(new ReadInput { FilePath = claudePath }, "Read");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_ClaudeProfileDir_AddedViaTildePath_Allows()
+    {
+        var approver = _createApprover();
+        approver.AdditionalDirectories.Add("~/.claude");
+        var claudePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".claude", "screenshots", "test.png");
+        var input = _createToolInput(new ReadInput { FilePath = claudePath }, "Read");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_OutsideProjectAndClaudeProfile_WithTildeAdditionalDir_StillDenies()
+    {
+        var approver = _createApprover();
+        approver.AdditionalDirectories.Add("~/.claude");
+        var outsidePath = Path.GetFullPath(Path.Combine(Path.GetPathRoot(Environment.CurrentDirectory)!, "etc", "passwd"));
+        var input = _createToolInput(new ReadInput { FilePath = outsidePath }, "Read");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
     // --- Testable subclass ---
 
     private class TestableApprover : InsideProjectAllowedApprover
