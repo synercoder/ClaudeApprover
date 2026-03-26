@@ -42,6 +42,7 @@ public class InsideProjectAllowedApprover : BaseApprover
         CommandApprovers.Add("base64", AllowCommand);
         CommandApprovers.Add("cat", AllowCommand);
         CommandApprovers.Add("cd", HandleCd);
+        CommandApprovers.Add("cp", HandleCp);
         CommandApprovers.Add("echo", AllowCommand);
         CommandApprovers.Add("file", AllowCommand);
         CommandApprovers.Add("find", AllowCommand);
@@ -360,6 +361,46 @@ public class InsideProjectAllowedApprover : BaseApprover
     }
 
     /// <summary>
+    /// Handles approval for <c>cp</c> commands by verifying all source and destination paths are inside the project root.
+    /// </summary>
+    /// <param name="commandInfo">Information about the cp command being evaluated.</param>
+    /// <param name="reason">An optional reason if the command is denied.</param>
+    /// <param name="newWorkingDirectory">Always <c>null</c>.</param>
+    /// <returns>The permission decision for the command.</returns>
+    protected virtual CommandPermission HandleCp(CommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
+    {
+        reason = null;
+        newWorkingDirectory = null;
+
+        if (commandInfo.Command.Executable != "cp")
+        {
+            reason = "Approver incorrectly configured, HandleCp should only handle cp commands.";
+            return CommandPermission.Deny;
+        }
+
+        var arguments = commandInfo.Command.Arguments
+            .Where(a => !_isCpFlag(a))
+            .ToList();
+
+        foreach (var argument in arguments)
+        {
+            var cpPath = _buildPath(commandInfo.WorkingDirectory, argument);
+            if (cpPath.Contains($"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}"))
+            {
+                reason = NOT_ALLOWED_IN_GIT_FOLDER;
+                return CommandPermission.Deny;
+            }
+            if (!IsInsideAllowedRoot(cpPath, commandInfo.ProjectRoot))
+            {
+                reason = NOT_ALLOWED_OUTSIDE_ROOT;
+                return CommandPermission.Deny;
+            }
+        }
+
+        return CommandPermission.Allow;
+    }
+
+    /// <summary>
     /// Determines whether a path is inside the project root or any of the allowed additional directories.
     /// </summary>
     /// <param name="fullPath">The normalized path to check.</param>
@@ -452,6 +493,29 @@ public class InsideProjectAllowedApprover : BaseApprover
             || argument == "--verbose"
             || argument == "--help"
             || argument == "--version";
+    }
+
+    private static bool _isCpFlag(string argument)
+    {
+        return argument is "-f" or "--force"
+            or "-r" or "-R" or "--recursive"
+            or "-v" or "--verbose"
+            or "-i" or "--interactive"
+            or "-n" or "--no-clobber"
+            or "-u" or "--update"
+            or "-p" or "--preserve"
+            or "-a" or "--archive"
+            or "-l" or "--link"
+            or "-s" or "--symbolic-link"
+            or "-d" or "--no-dereference"
+            or "-L" or "--dereference"
+            or "-H" or "-P"
+            or "--help" or "--version"
+            or "--strip-trailing-slashes"
+            || argument.StartsWith("--backup")
+            || argument.StartsWith("--reflink")
+            || argument.StartsWith("--preserve=")
+            || argument.StartsWith("--no-preserve");
     }
 
     private static string _buildPath(string currentWorkingDirectory, string pathArgument)
