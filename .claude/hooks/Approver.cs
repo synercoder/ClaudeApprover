@@ -11,6 +11,7 @@ var (json, input) = InputProcessor.Process(Console.OpenStandardInput());
 if (input is null)
 {
     Console.Error.WriteLine("Input could not be parsed...");
+    _logInput(json, "json-parse-error");
     return 1;
 }
 
