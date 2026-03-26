@@ -86,6 +86,15 @@ public class InsideProjectAllowedApprover : BaseApprover
     /// </summary>
     public bool ImportAdditionalDirsFromClaude { get; set; } = true;
 
+    /// <summary>
+    /// Gets or sets whether to allow access to the Claude profile directory (<c>~/.claude/</c>).
+    /// When enabled, file and bash operations targeting paths inside the user's <c>~/.claude/</c>
+    /// directory will be permitted. This is useful when Claude Code tools (e.g. playwright) need
+    /// to write files such as screenshots to the Claude profile directory.
+    /// Defaults to <c>false</c>.
+    /// </summary>
+    public bool AllowAccessToClaudeProfileDir { get; set; } = false;
+
     /// <inheritdoc />
     public override PreToolUseOutput? Handle(ToolInput input, ReadInput read)
         => Handle(read.FilePath, input.CurrentWorkingDirectory);
@@ -426,6 +435,15 @@ public class InsideProjectAllowedApprover : BaseApprover
                 if (PathNormalizer.IsInsideRoot(fullPath, resolved))
                     return true;
             }
+        }
+
+        if (AllowAccessToClaudeProfileDir)
+        {
+            var claudeProfileDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".claude");
+            if (PathNormalizer.IsInsideRoot(fullPath, claudeProfileDir))
+                return true;
         }
 
         return false;

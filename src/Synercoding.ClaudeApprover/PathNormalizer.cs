@@ -13,7 +13,7 @@ internal static class PathNormalizer
     /// <param name="path">The path to normalize.</param>
     /// <returns>The normalized, fully-qualified path.</returns>
     public static string Normalize(string path)
-        => Path.GetFullPath(ConvertMsysPath(path));
+        => Path.GetFullPath(ExpandTilde(ConvertMsysPath(path)));
 
     /// <summary>
     /// Normalizes a potentially relative path by combining it with a base directory, resolving relative segments,
@@ -24,8 +24,8 @@ internal static class PathNormalizer
     /// <returns>The normalized, fully-qualified path.</returns>
     public static string Normalize(string basePath, string path)
     {
-        path = ConvertMsysPath(path);
-        basePath = ConvertMsysPath(basePath);
+        path = ExpandTilde(ConvertMsysPath(path));
+        basePath = ExpandTilde(ConvertMsysPath(basePath));
 
         return Path.IsPathRooted(path)
             ? Path.GetFullPath(path)
@@ -52,6 +52,26 @@ internal static class PathNormalizer
         var rootWithSep = Path.TrimEndingDirectorySeparator(normalizedRoot) + Path.DirectorySeparatorChar;
         return normalizedPath.StartsWith(rootWithSep, comparison)
             || string.Equals(normalizedPath, Path.TrimEndingDirectorySeparator(normalizedRoot), comparison);
+    }
+
+    /// <summary>
+    /// Expands a tilde (<c>~</c>) prefix in a path to the current user's home directory.
+    /// If the path does not start with <c>~/</c> or is not exactly <c>~</c>, it is returned unchanged.
+    /// </summary>
+    /// <param name="path">The path to expand.</param>
+    /// <returns>The expanded path, or the original path if no expansion was needed.</returns>
+    public static string ExpandTilde(string path)
+    {
+        if (path == "~")
+            return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        if (path.StartsWith("~/"))
+        {
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            return Path.Combine(home, path[2..]);
+        }
+
+        return path;
     }
 
     /// <summary>

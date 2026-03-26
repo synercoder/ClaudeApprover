@@ -17,6 +17,7 @@ if (input is null)
 
 var approver = new InsideProjectAllowedApprover();
 approver.CommandApprovers["dotnet"] = InsideProjectAllowedApprover.AllowCommand;
+approver.AllowAccessToClaudeProfileDir = true;
 
 var output = approver.Handle(input);
 

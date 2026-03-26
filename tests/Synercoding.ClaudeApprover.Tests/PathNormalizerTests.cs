@@ -258,4 +258,56 @@ public class PathNormalizerTests
 
         PathNormalizer.IsInsideRoot(file, root).Should().BeTrue();
     }
+
+    // --- ExpandTilde ---
+
+    [Fact]
+    public void ExpandTilde_TildeSlashPath_ExpandsToUserProfile()
+    {
+        var result = PathNormalizer.ExpandTilde("~/.claude/screenshots/test.png");
+
+        var expected = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".claude/screenshots/test.png");
+
+        result.Should().Be(expected);
+    }
+
+    [Fact]
+    public void ExpandTilde_TildeOnly_ReturnsUserProfile()
+    {
+        var result = PathNormalizer.ExpandTilde("~");
+
+        result.Should().Be(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+    }
+
+    [Fact]
+    public void ExpandTilde_NonTildePath_ReturnsUnchanged()
+    {
+        var path = _abs("home", "user", ".claude");
+
+        var result = PathNormalizer.ExpandTilde(path);
+
+        result.Should().Be(path);
+    }
+
+    [Fact]
+    public void ExpandTilde_RelativePath_ReturnsUnchanged()
+    {
+        var result = PathNormalizer.ExpandTilde("src/file.cs");
+
+        result.Should().Be("src/file.cs");
+    }
+
+    [Fact]
+    public void Normalize_TildePath_ExpandsAndNormalizes()
+    {
+        var result = PathNormalizer.Normalize("~/.claude/screenshots/test.png");
+
+        var expected = Path.GetFullPath(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".claude/screenshots/test.png"));
+
+        result.Should().Be(expected);
+    }
 }

@@ -558,6 +558,50 @@ public class InsideProjectAllowedApproverTests
         }
     }
 
+    // --- AllowAccessToClaudeProfileDir tests ---
+
+    [Fact]
+    public void Handle_ClaudeProfileDir_DefaultFalse_Denies()
+    {
+        var approver = _createApprover();
+        var claudePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".claude", "screenshots", "test.png");
+        var input = _createToolInput(new ReadInput { FilePath = claudePath }, "Read");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_ClaudeProfileDir_WhenEnabled_Allows()
+    {
+        var approver = _createApprover();
+        approver.AllowAccessToClaudeProfileDir = true;
+        var claudePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".claude", "screenshots", "test.png");
+        var input = _createToolInput(new ReadInput { FilePath = claudePath }, "Read");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_OutsideProjectAndClaudeProfile_WhenEnabled_StillDenies()
+    {
+        var approver = _createApprover();
+        approver.AllowAccessToClaudeProfileDir = true;
+        var outsidePath = Path.GetFullPath(Path.Combine(Path.GetPathRoot(Environment.CurrentDirectory)!, "etc", "passwd"));
+        var input = _createToolInput(new ReadInput { FilePath = outsidePath }, "Read");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
     // --- Testable subclass ---
 
     private class TestableApprover : InsideProjectAllowedApprover

@@ -183,6 +183,17 @@ To disable importing from Claude settings:
 approver.ImportAdditionalDirsFromClaude = false;
 ```
 
+#### Claude Profile Directory Access
+
+Some Claude Code tools (e.g. playwright) write files such as screenshots to the `~/.claude/` directory. By default, the approver denies access to this directory since it is outside the project root. To allow access, set the `AllowAccessToClaudeProfileDir` property to `true`:
+
+```csharp
+var approver = new InsideProjectAllowedApprover();
+approver.AllowAccessToClaudeProfileDir = true;
+```
+
+Paths starting with `~/` are automatically expanded to the user's home directory.
+
 #### MCP Approvers
 
 You can also add custom logic for specific mcp servers:
