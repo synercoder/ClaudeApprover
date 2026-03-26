@@ -329,6 +329,118 @@ public class InsideProjectAllowedApproverTests
     }
 
     [Fact]
+    public void Handle_MkdirInsideProject_Allows()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = $"mkdir {_p("src", "newdir")}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_MkdirOutsideProject_Denies()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = $"mkdir {Path.GetFullPath(Path.Combine(Path.GetPathRoot(Environment.CurrentDirectory)!, "tmp", "newdir"))}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_MkdirInGitFolder_Denies()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = $"mkdir {_p(".git", "hooks")}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_MkdirWithFlags_Allows()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = $"mkdir -p -v {_p("src", "deep", "nested")}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_MkdirInAdditionalDirectory_Allows()
+    {
+        var approver = _createApprover();
+        approver.AdditionalDirectories.Add("../sister-project");
+        var input = _createToolInput(new BashInput { Command = $"mkdir {Path.Combine(_additionalDir, "newdir")}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_RmdirInsideProject_Allows()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = $"rmdir {_p("src", "emptydir")}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_RmdirOutsideProject_Denies()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = $"rmdir {Path.GetFullPath(Path.Combine(Path.GetPathRoot(Environment.CurrentDirectory)!, "tmp", "emptydir"))}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_RmdirInGitFolder_Denies()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = $"rmdir {_p(".git", "refs")}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_RmdirWithFlags_Allows()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = $"rmdir -p --verbose {_p("src", "emptydir")}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_RmdirInAdditionalDirectory_Allows()
+    {
+        var approver = _createApprover();
+        approver.AdditionalDirectories.Add("../sister-project");
+        var input = _createToolInput(new BashInput { Command = $"rmdir {Path.Combine(_additionalDir, "emptydir")}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
     public void Handle_SedInPlaceInsideProject_Allows()
     {
         var approver = _createApprover();
