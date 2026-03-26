@@ -11,7 +11,8 @@
     <Title>Synercoding.ClaudeApprover</Title>
     <Description>Contains classes with which you can create a dotnet claude approver for the PreToolUse hook.</Description>
     <PackageTags>Claude</PackageTags>
-    <PackageReleaseNotes>Added tilde (~/) path expansion support to PathNormalizer, enabling paths like ~/.claude in AdditionalDirectories.</PackageReleaseNotes>
+    <PackageReleaseNotes>Added tilde (~/) path expansion support to PathNormalizer, enabling paths like ~/.claude in AdditionalDirectories.
+Added mkdir and rmdir command handlers to InsideProjectAllowedApprover, validating directory paths are inside the project root.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>

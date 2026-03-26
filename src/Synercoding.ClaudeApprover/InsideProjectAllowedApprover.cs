@@ -51,10 +51,12 @@ public class InsideProjectAllowedApprover : BaseApprover
         CommandApprovers.Add("ifconfig", AllowCommand);
         CommandApprovers.Add("jq", AllowCommand);
         CommandApprovers.Add("ls", AllowCommand);
+        CommandApprovers.Add("mkdir", HandleMkdir);
         CommandApprovers.Add("pgrep", AllowCommand);
         CommandApprovers.Add("ps", AllowCommand);
         CommandApprovers.Add("pwd", AllowCommand);
         CommandApprovers.Add("rm", HandleRm);
+        CommandApprovers.Add("rmdir", HandleRmdir);
         CommandApprovers.Add("sed", HandleSed);
         CommandApprovers.Add("sort", AllowCommand);
         CommandApprovers.Add("tree", AllowCommand);
@@ -401,6 +403,86 @@ public class InsideProjectAllowedApprover : BaseApprover
     }
 
     /// <summary>
+    /// Handles approval for <c>mkdir</c> commands by verifying all targets are inside the project root.
+    /// </summary>
+    /// <param name="commandInfo">Information about the mkdir command being evaluated.</param>
+    /// <param name="reason">An optional reason if the command is denied.</param>
+    /// <param name="newWorkingDirectory">Always <c>null</c>.</param>
+    /// <returns>The permission decision for the command.</returns>
+    protected virtual CommandPermission HandleMkdir(CommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
+    {
+        reason = null;
+        newWorkingDirectory = null;
+
+        if (commandInfo.Command.Executable != "mkdir")
+        {
+            reason = "Approver incorrectly configured, HandleMkdir should only handle mkdir commands.";
+            return CommandPermission.Deny;
+        }
+
+        var arguments = commandInfo.Command.Arguments
+            .Where(a => !_isMkdirFlag(a))
+            .ToList();
+
+        foreach (var argument in arguments)
+        {
+            var mkdirPath = _buildPath(commandInfo.WorkingDirectory, argument);
+            if (mkdirPath.Contains($"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}"))
+            {
+                reason = NOT_ALLOWED_IN_GIT_FOLDER;
+                return CommandPermission.Deny;
+            }
+            if (!IsInsideAllowedRoot(mkdirPath, commandInfo.ProjectRoot))
+            {
+                reason = NOT_ALLOWED_OUTSIDE_ROOT;
+                return CommandPermission.Deny;
+            }
+        }
+
+        return CommandPermission.Allow;
+    }
+
+    /// <summary>
+    /// Handles approval for <c>rmdir</c> commands by verifying all targets are inside the project root.
+    /// </summary>
+    /// <param name="commandInfo">Information about the rmdir command being evaluated.</param>
+    /// <param name="reason">An optional reason if the command is denied.</param>
+    /// <param name="newWorkingDirectory">Always <c>null</c>.</param>
+    /// <returns>The permission decision for the command.</returns>
+    protected virtual CommandPermission HandleRmdir(CommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
+    {
+        reason = null;
+        newWorkingDirectory = null;
+
+        if (commandInfo.Command.Executable != "rmdir")
+        {
+            reason = "Approver incorrectly configured, HandleRmdir should only handle rmdir commands.";
+            return CommandPermission.Deny;
+        }
+
+        var arguments = commandInfo.Command.Arguments
+            .Where(a => !_isRmdirFlag(a))
+            .ToList();
+
+        foreach (var argument in arguments)
+        {
+            var rmdirPath = _buildPath(commandInfo.WorkingDirectory, argument);
+            if (rmdirPath.Contains($"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}"))
+            {
+                reason = NOT_ALLOWED_IN_GIT_FOLDER;
+                return CommandPermission.Deny;
+            }
+            if (!IsInsideAllowedRoot(rmdirPath, commandInfo.ProjectRoot))
+            {
+                reason = NOT_ALLOWED_OUTSIDE_ROOT;
+                return CommandPermission.Deny;
+            }
+        }
+
+        return CommandPermission.Allow;
+    }
+
+    /// <summary>
     /// Determines whether a path is inside the project root or any of the allowed additional directories.
     /// </summary>
     /// <param name="fullPath">The normalized path to check.</param>
@@ -516,6 +598,25 @@ public class InsideProjectAllowedApprover : BaseApprover
             || argument.StartsWith("--reflink")
             || argument.StartsWith("--preserve=")
             || argument.StartsWith("--no-preserve");
+    }
+
+    private static bool _isMkdirFlag(string argument)
+    {
+        return argument is "-p" or "--parents"
+            or "-v" or "--verbose"
+            or "-Z"
+            or "-m"
+            or "--help" or "--version"
+            || argument.StartsWith("--mode")
+            || argument.StartsWith("--context");
+    }
+
+    private static bool _isRmdirFlag(string argument)
+    {
+        return argument is "--ignore-fail-on-non-empty"
+            or "-p" or "--parents"
+            or "-v" or "--verbose"
+            or "--help" or "--version";
     }
 
     private static string _buildPath(string currentWorkingDirectory, string pathArgument)
