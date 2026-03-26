@@ -251,6 +251,84 @@ public class InsideProjectAllowedApproverTests
     }
 
     [Fact]
+    public void Handle_CpInsideProject_Allows()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = $"cp {_p("src", "file.cs")} {_p("src", "file.bak")}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_CpSourceOutsideProject_Denies()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = $"cp {Path.GetFullPath(Path.Combine(Path.GetPathRoot(Environment.CurrentDirectory)!, "etc", "passwd"))} {_p("src", "file.txt")}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_CpDestinationOutsideProject_Denies()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = $"cp {_p("src", "file.cs")} {Path.GetFullPath(Path.Combine(Path.GetPathRoot(Environment.CurrentDirectory)!, "tmp", "stolen.cs"))}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_CpFromGitFolder_Denies()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = $"cp {_p(".git", "config")} {_p("src", "config.bak")}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_CpToGitFolder_Denies()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = $"cp {_p("src", "file.cs")} {_p(".git", "hooks", "pre-commit")}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_CpRecursiveWithFlags_Allows()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = $"cp -r -v {_p("src", "dir1")} {_p("src", "dir2")}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_CpInAdditionalDirectory_Allows()
+    {
+        var approver = _createApprover();
+        approver.AdditionalDirectories.Add("../sister-project");
+        var input = _createToolInput(new BashInput { Command = $"cp {Path.Combine(_additionalDir, "file.cs")} {_p("src", "file.cs")}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
     public void Handle_SedInPlaceInsideProject_Allows()
     {
         var approver = _createApprover();
