@@ -234,7 +234,22 @@ public class BashCommandParser
 
     private void _skipWhitespace()
     {
-        while (_position < _input.Length && char.IsWhiteSpace(_input[_position]))
-            _position++;
+        while (_position < _input.Length)
+        {
+            if (char.IsWhiteSpace(_input[_position]))
+            {
+                _position++;
+            }
+            else if (_input[_position] == '#')
+            {
+                // Skip comment to end of line
+                while (_position < _input.Length && _input[_position] != '\n')
+                    _position++;
+            }
+            else
+            {
+                break;
+            }
+        }
     }
 }

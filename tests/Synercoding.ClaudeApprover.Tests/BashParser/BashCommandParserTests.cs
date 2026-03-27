@@ -205,4 +205,42 @@ public class BashCommandParserTests
         cmd.Executable.Should().Be("command");
         cmd.Redirections.Should().HaveCount(3);
     }
+
+    [Fact]
+    public void Parse_CommentOnly_ThrowsInvalidOperationException()
+    {
+        var act = () => _parser.Parse("# this is a comment");
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void Parse_CommentBeforeCommand_ParsesCommand()
+    {
+        var pipeline = _parser.Parse("# this is a comment\nls -la");
+
+        pipeline.Commands.Should().HaveCount(1);
+        pipeline.Commands[0].Executable.Should().Be("ls");
+        pipeline.Commands[0].Arguments.Should().Equal("-la");
+    }
+
+    [Fact]
+    public void Parse_InlineCommentAfterCommand_IgnoresComment()
+    {
+        var pipeline = _parser.Parse("ls -la # list all files");
+
+        pipeline.Commands.Should().HaveCount(1);
+        pipeline.Commands[0].Executable.Should().Be("ls");
+        pipeline.Commands[0].Arguments.Should().Equal("-la");
+    }
+
+    [Fact]
+    public void Parse_MultipleCommentLines_ParsesCommand()
+    {
+        var pipeline = _parser.Parse("# comment one\n# comment two\necho hello");
+
+        pipeline.Commands.Should().HaveCount(1);
+        pipeline.Commands[0].Executable.Should().Be("echo");
+        pipeline.Commands[0].Arguments.Should().Equal("hello");
+    }
 }
