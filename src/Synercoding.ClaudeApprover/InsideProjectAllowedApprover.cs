@@ -210,10 +210,7 @@ public class InsideProjectAllowedApprover : BaseApprover
         if (filePath.Contains(gitSegment))
             return Deny(NOT_ALLOWED_IN_GIT_FOLDER);
 
-        var fileInfo = new FileInfo(filePath);
-        if (fileInfo.Directory?.Name == "plans"
-            && fileInfo.Directory?.Parent?.Name == ".claude"
-            && fileInfo.Extension == ".md")
+        if (_isPlanFile(filePath))
         {
             // Creating a plan is allowed even if the plan is located outside the project folder
             return Allow();
@@ -509,6 +506,34 @@ public class InsideProjectAllowedApprover : BaseApprover
                     return true;
             }
         }
+
+        return false;
+    }
+
+    private static bool _isPlanFile(string filePath)
+    {
+        var fileInfo = new FileInfo(filePath);
+        if (fileInfo.Extension != ".md")
+            return false;
+
+        if (fileInfo.Directory?.Name != "plans")
+            return false;
+
+        var configDir = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
+        if (!string.IsNullOrEmpty(configDir))
+        {
+            var plansDir = PathNormalizer.Normalize(Path.Combine(configDir, "plans"));
+            var parentDir = PathNormalizer.Normalize(fileInfo.Directory.FullName);
+            var comparer = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            if (string.Equals(parentDir, plansDir, comparer))
+                return true;
+        }
+
+        // Default: check if the parent of "plans" is ".claude"
+        if (fileInfo.Directory?.Parent?.Name == ".claude")
+            return true;
 
         return false;
     }
