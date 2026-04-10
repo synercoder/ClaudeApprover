@@ -11,7 +11,8 @@
     <Title>Synercoding.ClaudeApprover</Title>
     <Description>Contains classes with which you can create a dotnet claude approver for the PreToolUse hook.</Description>
     <PackageTags>Claude</PackageTags>
-    <PackageReleaseNotes>The plan file check in InsideProjectAllowedApprover now respects the CLAUDE_CONFIG_DIR environment variable. When set, plan files under that directory are allowed; otherwise the default ~/.claude/plans location is used.</PackageReleaseNotes>
+    <PackageReleaseNotes>- The plan file exception in InsideProjectAllowedApprover has been generalized to allow all file access inside the Claude config directory (~/.claude or CLAUDE_CONFIG_DIR), not just plan files. The new protected virtual method IsClaudeConfigDirFile can be overridden by subclasses.
+- Fixed TaskCreate input deserialization: ActiveForm is now optional (nullable) instead of required.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
