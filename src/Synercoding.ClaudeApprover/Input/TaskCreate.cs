@@ -23,5 +23,5 @@ public class TaskCreate : IToolInput
     /// Gets the active form text shown while the task is in progress.
     /// </summary>
     [JsonPropertyName("activeForm")]
-    public required string ActiveForm { get; init; }
+    public string? ActiveForm { get; init; }
 }
