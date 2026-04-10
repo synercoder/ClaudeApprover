@@ -210,9 +210,9 @@ public class InsideProjectAllowedApprover : BaseApprover
         if (filePath.Contains(gitSegment))
             return Deny(NOT_ALLOWED_IN_GIT_FOLDER);
 
-        if (_isPlanFile(filePath))
+        if (IsClaudeConfigDirFile(filePath))
         {
-            // Creating a plan is allowed even if the plan is located outside the project folder
+            // Accessing files in the Claude config directory is allowed even if located outside the project folder
             return Allow();
         }
 
@@ -510,32 +510,22 @@ public class InsideProjectAllowedApprover : BaseApprover
         return false;
     }
 
-    private static bool _isPlanFile(string filePath)
+    /// <summary>
+    /// Determines whether the specified file path is inside the Claude configuration directory.
+    /// </summary>
+    /// <param name="filePath">The normalized absolute file path to check.</param>
+    /// <returns><c>true</c> if the file is inside the Claude config directory; otherwise, <c>false</c>.</returns>
+    protected virtual bool IsClaudeConfigDirFile(string filePath)
     {
-        var fileInfo = new FileInfo(filePath);
-        if (fileInfo.Extension != ".md")
-            return false;
-
-        if (fileInfo.Directory?.Name != "plans")
-            return false;
-
         var configDir = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
-        if (!string.IsNullOrEmpty(configDir))
+        if (string.IsNullOrEmpty(configDir))
         {
-            var plansDir = PathNormalizer.Normalize(Path.Combine(configDir, "plans"));
-            var parentDir = PathNormalizer.Normalize(fileInfo.Directory.FullName);
-            var comparer = OperatingSystem.IsWindows()
-                ? StringComparison.OrdinalIgnoreCase
-                : StringComparison.Ordinal;
-            if (string.Equals(parentDir, plansDir, comparer))
-                return true;
+            // Default: ~/.claude
+            configDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude");
         }
 
-        // Default: check if the parent of "plans" is ".claude"
-        if (fileInfo.Directory?.Parent?.Name == ".claude")
-            return true;
-
-        return false;
+        configDir = PathNormalizer.Normalize(configDir);
+        return PathNormalizer.IsInsideRoot(filePath, configDir);
     }
 
     private IReadOnlyList<string>? _claudeAdditionalDirs;

@@ -673,7 +673,7 @@ public class InsideProjectAllowedApproverTests
     // --- Tilde path in AdditionalDirectories tests ---
 
     [Fact]
-    public void Handle_ClaudeProfileDir_NotInAdditionalDirs_Denies()
+    public void Handle_ClaudeProfileDir_NotInAdditionalDirs_AllowedViaConfigDirCheck()
     {
         var approver = _createApprover();
         var claudePath = Path.Combine(
@@ -683,7 +683,7 @@ public class InsideProjectAllowedApproverTests
 
         var result = approver.Handle(input);
 
-        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
     }
 
     [Fact]
@@ -714,7 +714,104 @@ public class InsideProjectAllowedApproverTests
         result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
     }
 
-    // --- Testable subclass ---
+    // --- Claude config dir tests ---
+
+    [Fact]
+    public void Handle_ReadFileInsideClaudeConfigDir_Allows()
+    {
+        var approver = _createApprover();
+        var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", "settings.json");
+        var input = _createToolInput(new ReadInput { FilePath = configPath }, "Read");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_WriteFileInsideClaudeConfigDir_Allows()
+    {
+        var approver = _createApprover();
+        var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", "memory", "some_memory.md");
+        var input = _createToolInput(new WriteInput { FilePath = configPath, Content = "test" }, "Write");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_EditFileInsideClaudeConfigDir_Allows()
+    {
+        var approver = _createApprover();
+        var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", "plans", "my-plan.md");
+        var input = _createToolInput(new EditInput { FilePath = configPath, Old = "a", New = "b" }, "Edit");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_FileInsideClaudeConfigSubdir_Allows()
+    {
+        var approver = _createApprover();
+        var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", "some", "deep", "nested", "file.txt");
+        var input = _createToolInput(new ReadInput { FilePath = configPath }, "Read");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_FileInsideCustomClaudeConfigDir_Allows()
+    {
+        var customConfigDir = Path.Combine(Path.GetTempPath(), "custom-claude-config-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(customConfigDir);
+        try
+        {
+            Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", customConfigDir);
+            var approver = _createApprover();
+            var configPath = Path.Combine(customConfigDir, "settings.json");
+            var input = _createToolInput(new ReadInput { FilePath = configPath }, "Read");
+
+            var result = approver.Handle(input);
+
+            result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", null);
+            Directory.Delete(customConfigDir, true);
+        }
+    }
+
+    [Fact]
+    public void Handle_FileOutsideClaudeConfigDir_Denies()
+    {
+        var approver = _createApprover();
+        var outsidePath = Path.GetFullPath(Path.Combine(Path.GetPathRoot(Environment.CurrentDirectory)!, "some", "random", "file.txt"));
+        var input = _createToolInput(new ReadInput { FilePath = outsidePath }, "Read");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_SubclassCanOverrideIsClaudeConfigDirFile()
+    {
+        var approver = new ConfigDirOverrideApprover(_projectRoot);
+        var outsidePath = Path.GetFullPath(Path.Combine(Path.GetPathRoot(Environment.CurrentDirectory)!, "custom", "config", "file.txt"));
+        var input = _createToolInput(new ReadInput { FilePath = outsidePath }, "Read");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    // --- Testable subclasses ---
 
     private class TestableApprover : InsideProjectAllowedApprover
     {
@@ -726,5 +823,24 @@ public class InsideProjectAllowedApproverTests
         }
 
         protected override string? FindProjectFolder() => _projectRoot;
+    }
+
+    private class ConfigDirOverrideApprover : InsideProjectAllowedApprover
+    {
+        private readonly string? _projectRoot;
+
+        public ConfigDirOverrideApprover(string? projectRoot)
+        {
+            _projectRoot = projectRoot;
+        }
+
+        protected override string? FindProjectFolder() => _projectRoot;
+
+        protected override bool IsClaudeConfigDirFile(string filePath)
+        {
+            // Allow everything in /custom/config/ for testing purposes
+            var customDir = Path.GetFullPath(Path.Combine(Path.GetPathRoot(Environment.CurrentDirectory)!, "custom", "config"));
+            return PathNormalizer.IsInsideRoot(filePath, customDir);
+        }
     }
 }
