@@ -162,7 +162,7 @@ public class InsideProjectAllowedApprover : BaseApprover
         {
             foreach (var command in pipeline.Commands)
             {
-                if (CommandApprovers.TryGetValue(command.Executable, out var commandApprover))
+                if (_tryGetCommandApprover(command.Executable, out var commandApprover))
                 {
                     var commandInfo = new CommandInfo(command, workingDir, projectRoot);
                     var approvalResult = commandApprover(commandInfo, out string? reason, out string? newWorkingDir);
@@ -252,7 +252,7 @@ public class InsideProjectAllowedApprover : BaseApprover
         reason = null;
         newWorkingDirectory = null;
 
-        if (commandInfo.Command.Executable != "cd")
+        if (!_matchesCommandName(commandInfo.Command.Executable, "cd"))
         {
             reason = "Approver incorrectly configured, HandleCd should only handle cd commands.";
             return CommandPermission.Deny;
@@ -287,7 +287,7 @@ public class InsideProjectAllowedApprover : BaseApprover
         reason = null;
         newWorkingDirectory = null;
 
-        if (commandInfo.Command.Executable != "sed")
+        if (!_matchesCommandName(commandInfo.Command.Executable, "sed"))
         {
             reason = "Approver incorrectly configured, HandleSed should only handle sed commands.";
             return CommandPermission.Deny;
@@ -323,7 +323,7 @@ public class InsideProjectAllowedApprover : BaseApprover
         reason = null;
         newWorkingDirectory = null;
 
-        if (commandInfo.Command.Executable != "rm")
+        if (!_matchesCommandName(commandInfo.Command.Executable, "rm"))
         {
             reason = "Approver incorrectly configured, HandleRm should only handle rm commands.";
             return CommandPermission.Deny;
@@ -371,7 +371,7 @@ public class InsideProjectAllowedApprover : BaseApprover
         reason = null;
         newWorkingDirectory = null;
 
-        if (commandInfo.Command.Executable != "cp")
+        if (!_matchesCommandName(commandInfo.Command.Executable, "cp"))
         {
             reason = "Approver incorrectly configured, HandleCp should only handle cp commands.";
             return CommandPermission.Deny;
@@ -411,7 +411,7 @@ public class InsideProjectAllowedApprover : BaseApprover
         reason = null;
         newWorkingDirectory = null;
 
-        if (commandInfo.Command.Executable != "mkdir")
+        if (!_matchesCommandName(commandInfo.Command.Executable, "mkdir"))
         {
             reason = "Approver incorrectly configured, HandleMkdir should only handle mkdir commands.";
             return CommandPermission.Deny;
@@ -451,7 +451,7 @@ public class InsideProjectAllowedApprover : BaseApprover
         reason = null;
         newWorkingDirectory = null;
 
-        if (commandInfo.Command.Executable != "rmdir")
+        if (!_matchesCommandName(commandInfo.Command.Executable, "rmdir"))
         {
             reason = "Approver incorrectly configured, HandleRmdir should only handle rmdir commands.";
             return CommandPermission.Deny;
@@ -571,6 +571,37 @@ public class InsideProjectAllowedApprover : BaseApprover
 
         _claudeAdditionalDirs = dirs.ToList();
         return _claudeAdditionalDirs;
+    }
+
+    private bool _tryGetCommandApprover(string executable, out CommandApprover commandApprover)
+    {
+        if (CommandApprovers.TryGetValue(executable, out var approver))
+        {
+            commandApprover = approver;
+            return true;
+        }
+
+        // On Windows, bash tooling may invoke the .exe variant (e.g. `git.exe` instead of `git`).
+        // Fall back to the bare name so a single dictionary entry covers both forms.
+        if (executable.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            && CommandApprovers.TryGetValue(executable[..^4], out approver))
+        {
+            commandApprover = approver;
+            return true;
+        }
+
+        commandApprover = null!;
+        return false;
+    }
+
+    private static bool _matchesCommandName(string executable, string commandName)
+    {
+        if (executable == commandName)
+            return true;
+
+        return executable.Length == commandName.Length + 4
+            && executable.StartsWith(commandName, StringComparison.Ordinal)
+            && executable.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool _isRmFlag(string argument)

@@ -495,6 +495,54 @@ public class InsideProjectAllowedApproverTests
         result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
     }
 
+    [Theory]
+    [InlineData("ls.exe -la")]
+    [InlineData("grep.exe foo bar.txt")]
+    [InlineData("cat.EXE file.txt")]
+    public void Handle_AllowedBashCommandsWithExeSuffix_Allows(string command)
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = command }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_CustomCommandWithExeSuffix_DispatchesToBareNameEntry()
+    {
+        var approver = _createApprover();
+        approver.CommandApprovers.Add("git", InsideProjectAllowedApprover.AllowCommand);
+        var input = _createToolInput(new BashInput { Command = "git.exe status" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_CpExeInsideProject_Allows()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = $"cp.exe {_p("src", "file.cs")} {_p("src", "file.bak")}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_RmExeOutsideProject_Denies()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = $"rm.exe {Path.GetFullPath(Path.Combine(Path.GetPathRoot(Environment.CurrentDirectory)!, "etc", "passwd"))}" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
     [Fact]
     public void Handle_BashWithNullProjectRoot_Asks()
     {
