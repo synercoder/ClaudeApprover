@@ -9,6 +9,7 @@ namespace Synercoding.ClaudeApprover.Converters;
 /// </summary>
 [JsonSerializable(typeof(ToolInput))]
 [JsonSerializable(typeof(BashInput))]
+[JsonSerializable(typeof(PowerShellInput))]
 [JsonSerializable(typeof(EditInput))]
 [JsonSerializable(typeof(ReadInput))]
 [JsonSerializable(typeof(WriteInput))]

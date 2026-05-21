@@ -18,7 +18,7 @@ if (input is null)
 }
 
 var approver = new InsideProjectAllowedApprover();
-approver.CommandApprovers["dotnet"] = InsideProjectAllowedApprover.AllowCommand;
+approver.ExecutableApprovers["dotnet"] = InsideProjectAllowedApprover.AllowCommand;
 
 var output = approver.Handle(input);
 

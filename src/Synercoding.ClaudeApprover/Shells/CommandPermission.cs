@@ -1,7 +1,7 @@
-namespace Synercoding.ClaudeApprover.BashParser;
+namespace Synercoding.ClaudeApprover.Shells;
 
 /// <summary>
-/// Represents the permission decision for a bash command.
+/// Represents the permission decision for a shell command.
 /// </summary>
 public enum CommandPermission
 {

@@ -1,4 +1,4 @@
-namespace Synercoding.ClaudeApprover.BashParser;
+namespace Synercoding.ClaudeApprover.Shells;
 
 /// <summary>
 /// Contains information about a command being evaluated for approval, including the parsed command, working directory, and project root.
