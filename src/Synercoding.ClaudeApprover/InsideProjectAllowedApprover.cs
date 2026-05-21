@@ -258,8 +258,31 @@ public class InsideProjectAllowedApprover : BaseApprover
     {
         if (shellSpecific.TryGetValue(executable, out approver!))
             return true;
+        if (_tryGetExecutableApprover(executable, executables, out approver!))
+            return true;
+        approver = null!;
+        return false;
+    }
+
+    private static bool _tryGetExecutableApprover(
+        string executable,
+        IDictionary<string, CommandApprover> executables,
+        out CommandApprover approver)
+    {
         if (executables.TryGetValue(executable, out approver!))
             return true;
+
+        if (executable.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+        {
+            var stripped = executable[..^4];
+            if (stripped.Length > 0 && executables.TryGetValue(stripped, out approver!))
+                return true;
+        }
+        else if (executables.TryGetValue(executable + ".exe", out approver!))
+        {
+            return true;
+        }
+
         approver = null!;
         return false;
     }
