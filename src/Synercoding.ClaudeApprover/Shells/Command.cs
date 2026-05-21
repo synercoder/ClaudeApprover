@@ -1,15 +1,15 @@
 using System.Diagnostics;
 
-namespace Synercoding.ClaudeApprover.BashParser;
+namespace Synercoding.ClaudeApprover.Shells;
 
 /// <summary>
-/// Represents a single parsed bash command with its executable, arguments, and redirections.
+/// A single parsed shell command with its executable, arguments, and redirections.
 /// </summary>
 [DebuggerDisplay("{_toCommandLine()}")]
 public class Command
 {
     /// <summary>
-    /// Gets the executable name of the command.
+    /// Gets the executable name of the command (binary, cmdlet, script path, or other invocation target).
     /// </summary>
     public required string Executable { get; init; }
 

@@ -30,6 +30,17 @@ public class BaseApproverTests
     }
 
     [Fact]
+    public void Handle_PowerShellInput_DispatchesToPowerShellHandler()
+    {
+        var approver = new TestApprover();
+        var input = _createToolInput("PowerShell", new PowerShellInput { Command = "Get-ChildItem" });
+
+        approver.Handle(input);
+
+        approver.LastHandledToolType.Should().Be("PowerShell");
+    }
+
+    [Fact]
     public void Handle_ReadInput_DispatchesToReadHandler()
     {
         var approver = new TestApprover();
@@ -80,6 +91,12 @@ public class BaseApproverTests
         public override PreToolUseOutput? Handle(ToolInput input, BashInput bash)
         {
             LastHandledToolType = "Bash";
+            return Allow();
+        }
+
+        public override PreToolUseOutput? Handle(ToolInput input, PowerShellInput powerShell)
+        {
+            LastHandledToolType = "PowerShell";
             return Allow();
         }
 
