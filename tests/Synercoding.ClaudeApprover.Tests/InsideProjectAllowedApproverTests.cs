@@ -1134,6 +1134,78 @@ public class InsideProjectAllowedApproverTests
         result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
     }
 
+    [Fact]
+    public void Handle_ExecutableApproversBash_RegisteredWithoutExe_MatchesExeCommand()
+    {
+        var approver = _createApprover();
+        approver.ExecutableApprovers["git"] = InsideProjectAllowedApprover.AllowCommand;
+        var input = _createToolInput(new BashInput { Command = "git.exe status" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_ExecutableApproversBash_RegisteredWithExe_MatchesPlainCommand()
+    {
+        var approver = _createApprover();
+        approver.ExecutableApprovers["git.exe"] = InsideProjectAllowedApprover.AllowCommand;
+        var input = _createToolInput(new BashInput { Command = "git status" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_ExecutableApproversPowerShell_RegisteredWithoutExe_MatchesExeCommand()
+    {
+        var approver = _createApprover();
+        approver.ExecutableApprovers["git"] = InsideProjectAllowedApprover.AllowCommand;
+        var input = _createToolInput(new PowerShellInput { Command = "git.exe status" }, "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_ExecutableApproversPowerShell_RegisteredWithExe_MatchesPlainCommand()
+    {
+        var approver = _createApprover();
+        approver.ExecutableApprovers["git.exe"] = InsideProjectAllowedApprover.AllowCommand;
+        var input = _createToolInput(new PowerShellInput { Command = "git status" }, "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_ExecutableApproversExactMatch_WinsOverExeFallback()
+    {
+        var approver = _createApprover();
+        approver.ExecutableApprovers["git"] = InsideProjectAllowedApprover.AllowCommand;
+        approver.ExecutableApprovers["git.exe"] = InsideProjectAllowedApprover.AskCommand;
+        var input = _createToolInput(new BashInput { Command = "git.exe status" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Ask);
+    }
+
+    [Fact]
+    public void Handle_BashApproversDoesNotApplyExeFallback()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = "ls.exe" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Ask);
+    }
+
     // --- Testable subclasses ---
 
     private class TestableApprover : InsideProjectAllowedApprover
