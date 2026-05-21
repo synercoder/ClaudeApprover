@@ -239,6 +239,9 @@ public class InsideProjectAllowedApprover : BaseApprover
                     continue;
                 }
 
+                if (_tryGetApprover(command.Executable, PowerShellApprovers, new Dictionary<string, CommandApprover>(), out _))
+                    return Deny("You are trying to execute a PowerShell command using the Bash tool. Either use the Powershell tool, or use the bash equivalent.");
+
                 // Unknown/unlisted command, so ask user for confirmation
                 return Ask($"Command {command.Executable} is unknown, you can add an approval process to BashApprovers (bash-specific) or ExecutableApprovers (shared) if you want to implement a permanent answer.");
             }
