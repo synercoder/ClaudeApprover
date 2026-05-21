@@ -32,6 +32,31 @@ public class InputProcessorTests
     }
 
     [Fact]
+    public void Process_PowerShellToolJson_DeserializesAsPowerShellInput()
+    {
+        var json = """
+        {
+            "session_id": "00000000-0000-0000-0000-000000000001",
+            "transcript_path": "/tmp/transcript.txt",
+            "cwd": "/home/user",
+            "permission_mode": "auto",
+            "hook_event_name": "PreToolUse",
+            "tool_name": "PowerShell",
+            "tool_input": {"command":"Get-ChildItem","timeout":120000,"description":"list files"}
+        }
+        """;
+
+        var (_, toolInput) = InputProcessor.Process(_toStream(json));
+
+        toolInput.Should().NotBeNull();
+        toolInput!.ToolName.Should().Be("PowerShell");
+        var ps = toolInput.Input.Should().BeOfType<PowerShellInput>().Subject;
+        ps.Command.Should().Be("Get-ChildItem");
+        ps.TimeOut.Should().Be(120000);
+        ps.Description.Should().Be("list files");
+    }
+
+    [Fact]
     public void Process_InvalidJson_ReturnsNullToolInput()
     {
         var (rawJson, toolInput) = InputProcessor.Process(_toStream("not json"));

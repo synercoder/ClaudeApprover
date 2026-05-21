@@ -27,6 +27,7 @@ public class ToolInputConverter : JsonConverter<ToolInput>
         JsonTypeInfo inputTypeInfo = toolName switch
         {
             "Bash" => ToolInputJsonContext.Default.BashInput,
+            "PowerShell" => ToolInputJsonContext.Default.PowerShellInput,
             "Edit" => ToolInputJsonContext.Default.EditInput,
             "Read" => ToolInputJsonContext.Default.ReadInput,
             "Write" => ToolInputJsonContext.Default.WriteInput,

@@ -811,6 +811,265 @@ public class InsideProjectAllowedApproverTests
         result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
     }
 
+    // --- PowerShell tool tests ---
+
+    [Fact]
+    public void Handle_PowerShellSimpleCmdletAllowedByDefault_Allows()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new PowerShellInput { Command = "Get-ChildItem" }, "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_PowerShellUnknownCmdlet_Asks()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new PowerShellInput { Command = "Do-SomethingCustom -Arg value" }, "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Ask);
+    }
+
+    [Fact]
+    public void Handle_PowerShellSetLocationInsideProject_AllowsAndTracksCwd()
+    {
+        var approver = _createApprover();
+        var targetDir = _p("src", "subdir");
+        var input = _createToolInput(
+            new PowerShellInput { Command = $"Set-Location \"{targetDir}\"; Get-ChildItem" },
+            "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_PowerShellSetLocationOutsideProject_Denies()
+    {
+        var approver = _createApprover();
+        var outside = Path.GetFullPath(Path.Combine(Path.GetPathRoot(Environment.CurrentDirectory)!, "etc"));
+        var input = _createToolInput(
+            new PowerShellInput { Command = $"Set-Location \"{outside}\"" },
+            "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_PowerShellSetLocationIntoGitFolder_Denies()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(
+            new PowerShellInput { Command = $"cd \"{_p(".git")}\"" },
+            "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_PowerShellCdAlias_TreatedAsSetLocation()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(
+            new PowerShellInput { Command = $"cd \"{_p("src")}\"" },
+            "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_PowerShellRemoveItemInsideProject_Allows()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(
+            new PowerShellInput { Command = $"Remove-Item \"{_p("src", "old.cs")}\" -Force" },
+            "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_PowerShellRemoveItemOutsideProject_Denies()
+    {
+        var approver = _createApprover();
+        var outside = Path.GetFullPath(Path.Combine(Path.GetPathRoot(Environment.CurrentDirectory)!, "etc", "hosts"));
+        var input = _createToolInput(
+            new PowerShellInput { Command = $"Remove-Item \"{outside}\"" },
+            "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_PowerShellRemoveItemInGitFolder_Denies()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(
+            new PowerShellInput { Command = $"Remove-Item \"{_p(".git", "refs", "heads")}\" -Recurse -Force" },
+            "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_PowerShellRemoveItemWithPathParameter_ValidatesValue()
+    {
+        var approver = _createApprover();
+        var outside = Path.GetFullPath(Path.Combine(Path.GetPathRoot(Environment.CurrentDirectory)!, "etc", "hosts"));
+        var input = _createToolInput(
+            new PowerShellInput { Command = $"Remove-Item -Path \"{outside}\" -Recurse" },
+            "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_PowerShellCopyItemInsideProject_Allows()
+    {
+        var approver = _createApprover();
+        var src = _p("src", "a.cs");
+        var dst = _p("src", "b.cs");
+        var input = _createToolInput(
+            new PowerShellInput { Command = $"Copy-Item \"{src}\" \"{dst}\"" },
+            "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_PowerShellCopyItemDestinationOutside_Denies()
+    {
+        var approver = _createApprover();
+        var src = _p("src", "a.cs");
+        var dst = Path.GetFullPath(Path.Combine(Path.GetPathRoot(Environment.CurrentDirectory)!, "etc", "a.cs"));
+        var input = _createToolInput(
+            new PowerShellInput { Command = $"Copy-Item \"{src}\" -Destination \"{dst}\"" },
+            "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Deny);
+    }
+
+    [Fact]
+    public void Handle_PowerShellNewItemInsideProject_Allows()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(
+            new PowerShellInput { Command = $"New-Item -Path \"{_p("src", "NewDir")}\" -ItemType Directory" },
+            "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_PowerShellOutFileInsideProject_Allows()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(
+            new PowerShellInput { Command = $"Out-File -FilePath \"{_p("src", "log.txt")}\"" },
+            "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_PowerShellPipelineOfAllowedCmdlets_Allows()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(
+            new PowerShellInput { Command = $"Get-Content \"{_p("data.json")}\" -Raw | ConvertFrom-Json | Select-Object -Last 5" },
+            "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_PowerShellVariableAssignmentOfLiteral_Allows()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(
+            new PowerShellInput { Command = $"$f = 'C:/Git/project/test.json'" },
+            "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_PowerShellAssignmentFromCmdlet_ExtractsAndAllowsCmdlet()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(
+            new PowerShellInput { Command = $"$j = Get-Content \"{_p("data.json")}\" -Raw | ConvertFrom-Json" },
+            "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_PowerShellInvokeExpression_Asks()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(
+            new PowerShellInput { Command = "Invoke-Expression $scriptContent" },
+            "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Ask);
+    }
+
+    [Fact]
+    public void Handle_PowerShellSetLocationThenScriptInvocation_AsksForUnknownScript()
+    {
+        // Real example: user cds into a dir and runs .\Run-Tests.ps1 — the script
+        // is not a registered cmdlet, so we should Ask rather than Allow blindly.
+        var approver = _createApprover();
+        var postmanDir = _p("tests", "web", "PrintApi.Web.Api.Postman");
+        var input = _createToolInput(
+            new PowerShellInput
+            {
+                Command = $"Set-Location \"{postmanDir}\"; .\\Run-Tests.ps1 -Environment 'local-docker' 2>&1 | Select-Object -Last 20"
+            },
+            "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Ask);
+    }
+
     // --- Testable subclasses ---
 
     private class TestableApprover : InsideProjectAllowedApprover
