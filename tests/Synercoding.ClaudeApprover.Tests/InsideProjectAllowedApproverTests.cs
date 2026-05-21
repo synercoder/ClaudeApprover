@@ -1070,6 +1070,70 @@ public class InsideProjectAllowedApproverTests
         result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Ask);
     }
 
+    // --- ExecutableApprovers (shared bash/PowerShell) tests ---
+
+    [Fact]
+    public void Handle_BashCommandInExecutableApprovers_Allows()
+    {
+        var approver = _createApprover();
+        approver.ExecutableApprovers["dotnet"] = InsideProjectAllowedApprover.AllowCommand;
+        var input = _createToolInput(new BashInput { Command = "dotnet build" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_PowerShellCommandInExecutableApprovers_Allows()
+    {
+        var approver = _createApprover();
+        approver.ExecutableApprovers["dotnet"] = InsideProjectAllowedApprover.AllowCommand;
+        var input = _createToolInput(new PowerShellInput { Command = "dotnet build" }, "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
+    public void Handle_BashApproversOverridesExecutableApprovers()
+    {
+        var approver = _createApprover();
+        approver.BashApprovers["mytool"] = InsideProjectAllowedApprover.AskCommand;
+        approver.ExecutableApprovers["mytool"] = InsideProjectAllowedApprover.AllowCommand;
+        var input = _createToolInput(new BashInput { Command = "mytool" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Ask);
+    }
+
+    [Fact]
+    public void Handle_PowerShellApproversOverridesExecutableApprovers()
+    {
+        var approver = _createApprover();
+        approver.PowerShellApprovers["mycmdlet"] = InsideProjectAllowedApprover.AskCommand;
+        approver.ExecutableApprovers["mycmdlet"] = InsideProjectAllowedApprover.AllowCommand;
+        var input = _createToolInput(new PowerShellInput { Command = "mycmdlet" }, "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Ask);
+    }
+
+    [Fact]
+    public void Handle_ExecutableApproversCaseInsensitive_MatchesDifferentCaseFromPowerShell()
+    {
+        var approver = _createApprover();
+        approver.ExecutableApprovers["DotNet"] = InsideProjectAllowedApprover.AllowCommand;
+        var input = _createToolInput(new PowerShellInput { Command = "dotnet build" }, "PowerShell");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
     // --- Testable subclasses ---
 
     private class TestableApprover : InsideProjectAllowedApprover

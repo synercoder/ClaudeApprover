@@ -1,10 +1,8 @@
-using Synercoding.ClaudeApprover.BashParser;
 using Synercoding.ClaudeApprover.Input;
 using Synercoding.ClaudeApprover.Output;
+using Synercoding.ClaudeApprover.Shells;
+using Synercoding.ClaudeApprover.Shells.Parsers;
 using System.Text.Json;
-using PSCommandInfo = Synercoding.ClaudeApprover.PowerShellParser.CommandInfo;
-using PSCommandPermission = Synercoding.ClaudeApprover.PowerShellParser.CommandPermission;
-using PSParser = Synercoding.ClaudeApprover.PowerShellParser.PowerShellCommandParser;
 
 namespace Synercoding.ClaudeApprover;
 
@@ -14,22 +12,13 @@ namespace Synercoding.ClaudeApprover;
 public class InsideProjectAllowedApprover : BaseApprover
 {
     /// <summary>
-    /// Delegate for approving individual bash commands.
+    /// Delegate for approving individual shell command invocations (bash command, PowerShell cmdlet, or shared executable).
     /// </summary>
     /// <param name="commandInfo">Information about the command being evaluated.</param>
     /// <param name="reason">An optional reason for the decision.</param>
     /// <param name="newWorkingDirectory">An optional new working directory if the command changes it.</param>
     /// <returns>The permission decision for the command.</returns>
     public delegate CommandPermission CommandApprover(CommandInfo commandInfo, out string? reason, out string? newWorkingDirectory);
-
-    /// <summary>
-    /// Delegate for approving individual PowerShell cmdlet invocations.
-    /// </summary>
-    /// <param name="commandInfo">Information about the cmdlet being evaluated.</param>
-    /// <param name="reason">An optional reason for the decision.</param>
-    /// <param name="newWorkingDirectory">An optional new working directory if the cmdlet changes it.</param>
-    /// <returns>The permission decision for the cmdlet.</returns>
-    public delegate PSCommandPermission PowerShellApprover(PSCommandInfo commandInfo, out string? reason, out string? newWorkingDirectory);
 
     /// <summary>
     /// Represents a method that determines whether a tool input should be approved for use, based on the provided input
@@ -54,15 +43,94 @@ public class InsideProjectAllowedApprover : BaseApprover
         _registerDefaultPowerShellApprovers();
     }
 
-    /// <summary>
-    /// Gets the dictionary mapping command names to their approval handlers.
-    /// </summary>
-    public IDictionary<string, CommandApprover> CommandApprovers { get; } = new Dictionary<string, CommandApprover>();
+    private void _registerDefaultBashApprovers()
+    {
+        BashApprovers.Add("awk", AllowCommand);
+        BashApprovers.Add("base32", AllowCommand);
+        BashApprovers.Add("base64", AllowCommand);
+        BashApprovers.Add("cat", AllowCommand);
+        BashApprovers.Add("cd", HandleCd);
+        BashApprovers.Add("cp", HandleCp);
+        BashApprovers.Add("echo", AllowCommand);
+        BashApprovers.Add("file", AllowCommand);
+        BashApprovers.Add("find", AllowCommand);
+        BashApprovers.Add("grep", AllowCommand);
+        BashApprovers.Add("head", AllowCommand);
+        BashApprovers.Add("ifconfig", AllowCommand);
+        BashApprovers.Add("jq", AllowCommand);
+        BashApprovers.Add("ls", AllowCommand);
+        BashApprovers.Add("mkdir", HandleMkdir);
+        BashApprovers.Add("pgrep", AllowCommand);
+        BashApprovers.Add("ps", AllowCommand);
+        BashApprovers.Add("pwd", AllowCommand);
+        BashApprovers.Add("rm", HandleRm);
+        BashApprovers.Add("rmdir", HandleRmdir);
+        BashApprovers.Add("sed", HandleSed);
+        BashApprovers.Add("sort", AllowCommand);
+        BashApprovers.Add("tree", AllowCommand);
+        BashApprovers.Add("tail", AllowCommand);
+        BashApprovers.Add("wc", AllowCommand);
+        BashApprovers.Add("which", AllowCommand);
+    }
+
+    private void _registerDefaultPowerShellApprovers()
+    {
+        // Variable assignments with pure literal right-hand sides.
+        PowerShellApprovers.Add(PowerShellParser.ASSIGNMENT_SENTINEL, AllowCommand);
+
+        // Read-only / safe cmdlets.
+        foreach (var name in new[]
+        {
+            "Get-Content", "Get-ChildItem", "Get-Item", "Get-Location", "Get-Date", "Get-Command",
+            "Get-Member", "Get-Help", "Get-Variable", "Get-Process", "Get-Host",
+            "Write-Host", "Write-Output", "Write-Error", "Write-Warning", "Write-Debug", "Write-Verbose",
+            "Select-Object", "Select-String", "Where-Object", "ForEach-Object", "Sort-Object",
+            "Measure-Object", "Group-Object", "Compare-Object",
+            "Format-Table", "Format-List", "Format-Wide",
+            "Out-Host", "Out-String", "Out-Null", "Out-Default",
+            "ConvertFrom-Json", "ConvertTo-Json", "ConvertFrom-Csv", "ConvertTo-Csv", "ConvertFrom-StringData",
+            "Test-Path", "Resolve-Path", "Join-Path", "Split-Path",
+        })
+        {
+            PowerShellApprovers.Add(name, AllowCommand);
+        }
+
+        // Path-mutating cmdlets with their common aliases.
+        foreach (var name in new[] { "Set-Location", "cd", "sl", "chdir" })
+            PowerShellApprovers.Add(name, HandlePsSetLocation);
+        foreach (var name in new[] { "Remove-Item", "rm", "del", "erase", "rd", "rmdir", "ri" })
+            PowerShellApprovers.Add(name, HandlePsRemoveItem);
+        foreach (var name in new[] { "Copy-Item", "cp", "copy", "cpi" })
+            PowerShellApprovers.Add(name, HandlePsCopyItem);
+        foreach (var name in new[] { "Move-Item", "mv", "move", "mi" })
+            PowerShellApprovers.Add(name, HandlePsMoveItem);
+        foreach (var name in new[] { "New-Item", "ni" })
+            PowerShellApprovers.Add(name, HandlePsNewItem);
+        foreach (var name in new[] { "Rename-Item", "ren", "rni" })
+            PowerShellApprovers.Add(name, HandlePsRenameItem);
+        foreach (var name in new[] { "Out-File", "Set-Content", "Add-Content", "Clear-Content" })
+            PowerShellApprovers.Add(name, HandlePsWriteContent);
+
+        // Cmdlets we never want to auto-approve without explicit opt-in.
+        foreach (var name in new[] { "Invoke-Expression", "iex", "Invoke-WebRequest", "iwr", "Invoke-RestMethod", "irm" })
+            PowerShellApprovers.Add(name, AskCommand);
+    }
 
     /// <summary>
-    /// Gets the dictionary mapping PowerShell cmdlet names (case-insensitive) to their approval handlers.
+    /// Gets the dictionary mapping bash-shell-specific commands (e.g. <c>cd</c>, <c>rm</c>, <c>sed</c>) to their approval handlers. Case-sensitive.
     /// </summary>
-    public IDictionary<string, PowerShellApprover> PowerShellApprovers { get; } = new Dictionary<string, PowerShellApprover>(StringComparer.OrdinalIgnoreCase);
+    public IDictionary<string, CommandApprover> BashApprovers { get; } = new Dictionary<string, CommandApprover>();
+
+    /// <summary>
+    /// Gets the dictionary mapping PowerShell-specific cmdlet names (e.g. <c>Set-Location</c>, <c>Remove-Item</c>) to their approval handlers. Case-insensitive.
+    /// </summary>
+    public IDictionary<string, CommandApprover> PowerShellApprovers { get; } = new Dictionary<string, CommandApprover>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the dictionary mapping executable names shared between bash and PowerShell (e.g. <c>dotnet</c>, <c>git</c>, <c>node</c>) to their approval handlers.
+    /// Consulted when no shell-specific entry matches in <see cref="BashApprovers"/> or <see cref="PowerShellApprovers"/>. Case-insensitive.
+    /// </summary>
+    public IDictionary<string, CommandApprover> ExecutableApprovers { get; } = new Dictionary<string, CommandApprover>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets the dictionary mapping mcp names to their approval handlers.
@@ -147,7 +215,7 @@ public class InsideProjectAllowedApprover : BaseApprover
         if (projectRoot is null)
             return Ask("Could not determine the project root, approver is not configured correctly.");
 
-        var parser = new BashCommandParser();
+        var parser = new BashParser();
 
         var pipeline = parser.Parse(bash.Command);
 
@@ -155,7 +223,7 @@ public class InsideProjectAllowedApprover : BaseApprover
         {
             foreach (var command in pipeline.Commands)
             {
-                if (CommandApprovers.TryGetValue(command.Executable, out var commandApprover))
+                if (_tryGetApprover(command.Executable, BashApprovers, ExecutableApprovers, out var commandApprover))
                 {
                     var commandInfo = new CommandInfo(command, workingDir, projectRoot);
                     var approvalResult = commandApprover(commandInfo, out string? reason, out string? newWorkingDir);
@@ -172,7 +240,7 @@ public class InsideProjectAllowedApprover : BaseApprover
                 }
 
                 // Unknown/unlisted command, so ask user for confirmation
-                return Ask($"Command {command.Executable} is unknown, you can add a approval process to the CommandApprovers property if you want to implement a permanent answer.");
+                return Ask($"Command {command.Executable} is unknown, you can add an approval process to BashApprovers (bash-specific) or ExecutableApprovers (shared) if you want to implement a permanent answer.");
             }
 
             pipeline = pipeline.NextPipeline;
@@ -180,6 +248,20 @@ public class InsideProjectAllowedApprover : BaseApprover
 
         // If we got here, all commands are allowed
         return Allow();
+    }
+
+    private static bool _tryGetApprover(
+        string executable,
+        IDictionary<string, CommandApprover> shellSpecific,
+        IDictionary<string, CommandApprover> executables,
+        out CommandApprover approver)
+    {
+        if (shellSpecific.TryGetValue(executable, out approver!))
+            return true;
+        if (executables.TryGetValue(executable, out approver!))
+            return true;
+        approver = null!;
+        return false;
     }
 
     /// <summary>
@@ -643,7 +725,7 @@ public class InsideProjectAllowedApprover : BaseApprover
         if (projectRoot is null)
             return Ask(CANT_DETERMINE_PROJECT_ROOT);
 
-        var parser = new PSParser();
+        var parser = new PowerShellParser();
 
         var pipeline = parser.Parse(powerShell.Command);
 
@@ -651,22 +733,22 @@ public class InsideProjectAllowedApprover : BaseApprover
         {
             foreach (var command in pipeline.Commands)
             {
-                if (PowerShellApprovers.TryGetValue(command.Executable, out var approver))
+                if (_tryGetApprover(command.Executable, PowerShellApprovers, ExecutableApprovers, out var approver))
                 {
-                    var info = new PSCommandInfo(command, workingDir, projectRoot);
+                    var info = new CommandInfo(command, workingDir, projectRoot);
                     var decision = approver(info, out var reason, out var newWorkingDir);
                     if (newWorkingDir is not null)
                         workingDir = newWorkingDir;
 
-                    if (decision == PSCommandPermission.Ask)
+                    if (decision == CommandPermission.Ask)
                         return Ask(reason);
-                    if (decision == PSCommandPermission.Deny)
+                    if (decision == CommandPermission.Deny)
                         return Deny(reason);
 
                     continue;
                 }
 
-                return Ask($"Cmdlet {command.Executable} is unknown, you can add an approval process to the PowerShellApprovers property if you want to implement a permanent answer.");
+                return Ask($"Cmdlet {command.Executable} is unknown, you can add an approval process to PowerShellApprovers (PowerShell-specific) or ExecutableApprovers (shared) if you want to implement a permanent answer.");
             }
 
             pipeline = pipeline.NextPipeline;
@@ -676,110 +758,23 @@ public class InsideProjectAllowedApprover : BaseApprover
     }
 
     /// <summary>
-    /// Default PowerShell approver that allows a cmdlet unconditionally.
+    /// Default command approver that always asks the user for confirmation. Useful for explicit-opt-in registrations.
     /// </summary>
-    /// <param name="commandInfo">Information about the cmdlet being evaluated.</param>
+    /// <param name="commandInfo">Information about the command being evaluated.</param>
     /// <param name="reason">Always <c>null</c>.</param>
     /// <param name="newWorkingDirectory">Always <c>null</c>.</param>
-    /// <returns><see cref="PSCommandPermission.Allow"/>.</returns>
-    public static PSCommandPermission PowerShellAllowCommand(PSCommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
+    /// <returns><see cref="CommandPermission.Ask"/>.</returns>
+    public static CommandPermission AskCommand(CommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
     {
         reason = null;
         newWorkingDirectory = null;
-        return PSCommandPermission.Allow;
-    }
-
-    /// <summary>
-    /// Default PowerShell approver that always asks the user for confirmation.
-    /// </summary>
-    /// <param name="commandInfo">Information about the cmdlet being evaluated.</param>
-    /// <param name="reason">Always <c>null</c>.</param>
-    /// <param name="newWorkingDirectory">Always <c>null</c>.</param>
-    /// <returns><see cref="PSCommandPermission.Ask"/>.</returns>
-    public static PSCommandPermission PowerShellAskCommand(PSCommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
-    {
-        reason = null;
-        newWorkingDirectory = null;
-        return PSCommandPermission.Ask;
-    }
-
-    private void _registerDefaultBashApprovers()
-    {
-        CommandApprovers.Add("awk", AllowCommand);
-        CommandApprovers.Add("base32", AllowCommand);
-        CommandApprovers.Add("base64", AllowCommand);
-        CommandApprovers.Add("cat", AllowCommand);
-        CommandApprovers.Add("cd", HandleCd);
-        CommandApprovers.Add("cp", HandleCp);
-        CommandApprovers.Add("echo", AllowCommand);
-        CommandApprovers.Add("file", AllowCommand);
-        CommandApprovers.Add("find", AllowCommand);
-        CommandApprovers.Add("grep", AllowCommand);
-        CommandApprovers.Add("head", AllowCommand);
-        CommandApprovers.Add("ifconfig", AllowCommand);
-        CommandApprovers.Add("jq", AllowCommand);
-        CommandApprovers.Add("ls", AllowCommand);
-        CommandApprovers.Add("mkdir", HandleMkdir);
-        CommandApprovers.Add("pgrep", AllowCommand);
-        CommandApprovers.Add("ps", AllowCommand);
-        CommandApprovers.Add("pwd", AllowCommand);
-        CommandApprovers.Add("rm", HandleRm);
-        CommandApprovers.Add("rmdir", HandleRmdir);
-        CommandApprovers.Add("sed", HandleSed);
-        CommandApprovers.Add("sort", AllowCommand);
-        CommandApprovers.Add("tree", AllowCommand);
-        CommandApprovers.Add("tail", AllowCommand);
-        CommandApprovers.Add("wc", AllowCommand);
-        CommandApprovers.Add("which", AllowCommand);
-    }
-
-    private void _registerDefaultPowerShellApprovers()
-    {
-        // Variable assignments with pure literal right-hand sides.
-        PowerShellApprovers.Add(PSParser.ASSIGNMENT_SENTINEL, PowerShellAllowCommand);
-
-        // Read-only / safe cmdlets.
-        foreach (var name in new[]
-        {
-            "Get-Content", "Get-ChildItem", "Get-Item", "Get-Location", "Get-Date", "Get-Command",
-            "Get-Member", "Get-Help", "Get-Variable", "Get-Process", "Get-Host",
-            "Write-Host", "Write-Output", "Write-Error", "Write-Warning", "Write-Debug", "Write-Verbose",
-            "Select-Object", "Select-String", "Where-Object", "ForEach-Object", "Sort-Object",
-            "Measure-Object", "Group-Object", "Compare-Object",
-            "Format-Table", "Format-List", "Format-Wide",
-            "Out-Host", "Out-String", "Out-Null", "Out-Default",
-            "ConvertFrom-Json", "ConvertTo-Json", "ConvertFrom-Csv", "ConvertTo-Csv", "ConvertFrom-StringData",
-            "Test-Path", "Resolve-Path", "Join-Path", "Split-Path",
-        })
-        {
-            PowerShellApprovers.Add(name, PowerShellAllowCommand);
-        }
-
-        // Path-mutating cmdlets with their common aliases.
-        foreach (var name in new[] { "Set-Location", "cd", "sl", "chdir" })
-            PowerShellApprovers.Add(name, HandlePsSetLocation);
-        foreach (var name in new[] { "Remove-Item", "rm", "del", "erase", "rd", "rmdir", "ri" })
-            PowerShellApprovers.Add(name, HandlePsRemoveItem);
-        foreach (var name in new[] { "Copy-Item", "cp", "copy", "cpi" })
-            PowerShellApprovers.Add(name, HandlePsCopyItem);
-        foreach (var name in new[] { "Move-Item", "mv", "move", "mi" })
-            PowerShellApprovers.Add(name, HandlePsMoveItem);
-        foreach (var name in new[] { "New-Item", "ni" })
-            PowerShellApprovers.Add(name, HandlePsNewItem);
-        foreach (var name in new[] { "Rename-Item", "ren", "rni" })
-            PowerShellApprovers.Add(name, HandlePsRenameItem);
-        foreach (var name in new[] { "Out-File", "Set-Content", "Add-Content", "Clear-Content" })
-            PowerShellApprovers.Add(name, HandlePsWriteContent);
-
-        // Cmdlets we never want to auto-approve without explicit opt-in.
-        foreach (var name in new[] { "Invoke-Expression", "iex", "Invoke-WebRequest", "iwr", "Invoke-RestMethod", "irm" })
-            PowerShellApprovers.Add(name, PowerShellAskCommand);
+        return CommandPermission.Ask;
     }
 
     /// <summary>
     /// Handles approval for <c>Set-Location</c> (and aliases <c>cd</c>, <c>sl</c>, <c>chdir</c>) by verifying the target directory is inside the project root.
     /// </summary>
-    protected virtual PSCommandPermission HandlePsSetLocation(PSCommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
+    protected virtual CommandPermission HandlePsSetLocation(CommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
     {
         reason = null;
         newWorkingDirectory = null;
@@ -789,64 +784,64 @@ public class InsideProjectAllowedApprover : BaseApprover
         {
             // Set-Location with no arg resolves to $HOME; treat as an ambiguous case and ask.
             reason = "Set-Location without an explicit path is not auto-approved.";
-            return PSCommandPermission.Ask;
+            return CommandPermission.Ask;
         }
 
         var target = paths[0];
         if (target.Contains(".git", StringComparison.Ordinal))
         {
             reason = NOT_ALLOWED_IN_GIT_FOLDER;
-            return PSCommandPermission.Deny;
+            return CommandPermission.Deny;
         }
 
         var newPath = _buildPath(commandInfo.WorkingDirectory, target);
         if (!IsInsideAllowedRoot(newPath, commandInfo.ProjectRoot))
         {
             reason = NOT_ALLOWED_OUTSIDE_ROOT;
-            return PSCommandPermission.Deny;
+            return CommandPermission.Deny;
         }
 
         newWorkingDirectory = newPath;
-        return PSCommandPermission.Allow;
+        return CommandPermission.Allow;
     }
 
     /// <summary>
     /// Handles approval for <c>Remove-Item</c> (and common aliases) by verifying every target path is inside the project root.
     /// </summary>
-    protected virtual PSCommandPermission HandlePsRemoveItem(PSCommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
+    protected virtual CommandPermission HandlePsRemoveItem(CommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
         => _validatePsPaths(commandInfo, out reason, out newWorkingDirectory);
 
     /// <summary>
     /// Handles approval for <c>Copy-Item</c> (and aliases) by verifying every source and destination path is inside the project root.
     /// </summary>
-    protected virtual PSCommandPermission HandlePsCopyItem(PSCommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
+    protected virtual CommandPermission HandlePsCopyItem(CommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
         => _validatePsPaths(commandInfo, out reason, out newWorkingDirectory);
 
     /// <summary>
     /// Handles approval for <c>Move-Item</c> (and aliases) by verifying every source and destination path is inside the project root.
     /// </summary>
-    protected virtual PSCommandPermission HandlePsMoveItem(PSCommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
+    protected virtual CommandPermission HandlePsMoveItem(CommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
         => _validatePsPaths(commandInfo, out reason, out newWorkingDirectory);
 
     /// <summary>
     /// Handles approval for <c>New-Item</c> (and <c>ni</c>) by verifying every target path is inside the project root.
     /// </summary>
-    protected virtual PSCommandPermission HandlePsNewItem(PSCommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
+    protected virtual CommandPermission HandlePsNewItem(CommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
         => _validatePsPaths(commandInfo, out reason, out newWorkingDirectory);
 
     /// <summary>
     /// Handles approval for <c>Rename-Item</c> (and aliases) by verifying the source path is inside the project root.
     /// </summary>
-    protected virtual PSCommandPermission HandlePsRenameItem(PSCommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
+    protected virtual CommandPermission HandlePsRenameItem(CommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
         => _validatePsPaths(commandInfo, out reason, out newWorkingDirectory);
 
     /// <summary>
     /// Handles approval for content-writing cmdlets (<c>Out-File</c>, <c>Set-Content</c>, <c>Add-Content</c>, <c>Clear-Content</c>) by verifying the target path is inside the project root.
     /// </summary>
-    protected virtual PSCommandPermission HandlePsWriteContent(PSCommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
+    protected virtual CommandPermission HandlePsWriteContent(CommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
         => _validatePsPaths(commandInfo, out reason, out newWorkingDirectory);
 
-    private PSCommandPermission _validatePsPaths(PSCommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
+    private CommandPermission _validatePsPaths(CommandInfo commandInfo, out string? reason, out string? newWorkingDirectory)
     {
         reason = null;
         newWorkingDirectory = null;
@@ -857,16 +852,16 @@ public class InsideProjectAllowedApprover : BaseApprover
             if (resolved.Contains($"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}"))
             {
                 reason = NOT_ALLOWED_IN_GIT_FOLDER;
-                return PSCommandPermission.Deny;
+                return CommandPermission.Deny;
             }
             if (!IsInsideAllowedRoot(resolved, commandInfo.ProjectRoot))
             {
                 reason = NOT_ALLOWED_OUTSIDE_ROOT;
-                return PSCommandPermission.Deny;
+                return CommandPermission.Deny;
             }
         }
 
-        return PSCommandPermission.Allow;
+        return CommandPermission.Allow;
     }
 
     private static IEnumerable<string> _extractPowerShellPathArgs(IList<string> arguments)

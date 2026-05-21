@@ -1,15 +1,15 @@
 using System.Diagnostics;
 
-namespace Synercoding.ClaudeApprover.PowerShellParser;
+namespace Synercoding.ClaudeApprover.Shells;
 
 /// <summary>
-/// Represents a single parsed PowerShell command with its executable, arguments, and redirections.
+/// A single parsed shell command with its executable, arguments, and redirections.
 /// </summary>
 [DebuggerDisplay("{_toCommandLine()}")]
 public class Command
 {
     /// <summary>
-    /// Gets the executable name of the command (cmdlet, script path, or other invocation target).
+    /// Gets the executable name of the command (binary, cmdlet, script path, or other invocation target).
     /// </summary>
     public required string Executable { get; init; }
 
@@ -29,6 +29,7 @@ public class Command
 
         foreach (var arg in Arguments)
         {
+            // Quote arguments that contain spaces
             parts.Add(arg.Contains(' ') ? $"\"{arg}\"" : arg);
         }
 

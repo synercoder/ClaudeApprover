@@ -1,10 +1,10 @@
-using Synercoding.ClaudeApprover.PowerShellParser;
+using Synercoding.ClaudeApprover.Shells.Parsers;
 
-namespace Synercoding.ClaudeApprover.Tests.PowerShellParser;
+namespace Synercoding.ClaudeApprover.Tests.Shells;
 
-public class PowerShellCommandParserTests
+public class PowerShellParserTests
 {
-    private readonly PowerShellCommandParser _parser = new();
+    private readonly PowerShellParser _parser = new();
 
     [Fact]
     public void Parse_SimpleCmdlet_ReturnsSingleCommand()
@@ -127,7 +127,7 @@ public class PowerShellCommandParserTests
     {
         var pipeline = _parser.Parse("$x = @{ A = 1; B = 2 }");
 
-        pipeline.Commands[0].Executable.Should().Be(PowerShellCommandParser.ASSIGNMENT_SENTINEL);
+        pipeline.Commands[0].Executable.Should().Be(PowerShellParser.ASSIGNMENT_SENTINEL);
         pipeline.Commands[0].Arguments.Should().ContainSingle()
             .Which.Should().Be("@{ A = 1; B = 2 }");
         pipeline.NextPipeline.Should().BeNull();
@@ -151,7 +151,7 @@ public class PowerShellCommandParserTests
 
         var pipeline = _parser.Parse(script);
 
-        pipeline.Commands[0].Executable.Should().Be(PowerShellCommandParser.ASSIGNMENT_SENTINEL);
+        pipeline.Commands[0].Executable.Should().Be(PowerShellParser.ASSIGNMENT_SENTINEL);
         pipeline.Commands[0].Arguments.Should().ContainSingle()
             .Which.Should().Be("first\nsecond;third | fourth");
         pipeline.NextPipeline.Should().NotBeNull();
@@ -230,7 +230,7 @@ public class PowerShellCommandParserTests
     {
         var pipeline = _parser.Parse("$f = 'some/path.json'");
 
-        pipeline.Commands[0].Executable.Should().Be(PowerShellCommandParser.ASSIGNMENT_SENTINEL);
+        pipeline.Commands[0].Executable.Should().Be(PowerShellParser.ASSIGNMENT_SENTINEL);
         pipeline.Commands[0].Arguments.Should().Equal("some/path.json");
     }
 
@@ -258,7 +258,7 @@ public class PowerShellCommandParserTests
     {
         var pipeline = _parser.Parse("$script:x = 1");
 
-        pipeline.Commands[0].Executable.Should().Be(PowerShellCommandParser.ASSIGNMENT_SENTINEL);
+        pipeline.Commands[0].Executable.Should().Be(PowerShellParser.ASSIGNMENT_SENTINEL);
     }
 
     [Fact]
@@ -388,7 +388,7 @@ public class PowerShellCommandParserTests
 
         var pipeline = _parser.Parse(command);
 
-        pipeline.Commands[0].Executable.Should().Be(PowerShellCommandParser.ASSIGNMENT_SENTINEL);
+        pipeline.Commands[0].Executable.Should().Be(PowerShellParser.ASSIGNMENT_SENTINEL);
 
         var second = pipeline.NextPipeline!;
         second.Commands.Should().HaveCount(2);

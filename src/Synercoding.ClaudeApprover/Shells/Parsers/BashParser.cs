@@ -1,11 +1,11 @@
 using System.Text;
 
-namespace Synercoding.ClaudeApprover.BashParser;
+namespace Synercoding.ClaudeApprover.Shells.Parsers;
 
 /// <summary>
 /// Recursive descent parser for bash command strings, producing a linked list of <see cref="Pipeline"/> objects.
 /// </summary>
-public class BashCommandParser
+public class BashParser
 {
     private string _input = string.Empty;
     private int _position;

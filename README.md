@@ -150,13 +150,21 @@ Each handler can return:
 
 ### `InsideProjectAllowedApprover`
 
-The included `InsideProjectAllowedApprover` enforces that all file operations (read, edit, write) and bash commands stay within the project root directory. It also prevents access to `.git` directories and includes a bash command parser with per-command approval via the `CommandApprovers` dictionary.
+The included `InsideProjectAllowedApprover` enforces that all file operations (read, edit, write), bash commands, and PowerShell commands stay within the project root directory. It also prevents access to `.git` directories and ships with bash and PowerShell command parsers, each with per-command approval.
 
-The set of recognized bash commands can be extended by adding entries to the `CommandApprovers` dictionary property. Any command not in the dictionary will default to `Ask`. For example:
+Three dictionaries control per-command approval:
+
+- `BashApprovers` — bash-shell-specific commands (e.g. `cd`, `rm`, `sed`). Case-sensitive.
+- `PowerShellApprovers` — PowerShell-specific cmdlets and aliases (e.g. `Set-Location`, `Remove-Item`, `Out-File`). Case-insensitive.
+- `ExecutableApprovers` — executables shared between bash and PowerShell (e.g. `dotnet`, `git`, `node`). Case-insensitive. Consulted when no shell-specific entry matches, so a single registration applies to both shells.
+
+Any command not found in either the shell-specific list or `ExecutableApprovers` will default to `Ask`. Shell-specific entries win when the same key exists in both. For example:
 
 ```csharp
 var approver = new InsideProjectAllowedApprover();
-approver.CommandApprovers["dotnet"] = InsideProjectAllowedApprover.AllowCommand;
+// Allowed from both bash and PowerShell with one registration:
+approver.ExecutableApprovers["dotnet"] = InsideProjectAllowedApprover.AllowCommand;
+approver.ExecutableApprovers["git"] = InsideProjectAllowedApprover.AllowCommand;
 ```
 
 #### Additional Directories

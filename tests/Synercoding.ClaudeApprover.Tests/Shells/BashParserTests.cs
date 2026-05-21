@@ -1,10 +1,10 @@
-using Synercoding.ClaudeApprover.BashParser;
+using Synercoding.ClaudeApprover.Shells.Parsers;
 
-namespace Synercoding.ClaudeApprover.Tests.BashParser;
+namespace Synercoding.ClaudeApprover.Tests.Parsers;
 
-public class BashCommandParserTests
+public class BashParserTests
 {
-    private readonly BashCommandParser _parser = new();
+    private readonly BashParser _parser = new();
 
     [Fact]
     public void Parse_SimpleCommand_ReturnsSingleCommand()

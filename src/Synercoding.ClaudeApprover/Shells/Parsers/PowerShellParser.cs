@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Synercoding.ClaudeApprover.PowerShellParser;
+namespace Synercoding.ClaudeApprover.Shells.Parsers;
 
 /// <summary>
 /// Recursive descent parser for PowerShell command strings, producing a linked list of <see cref="Pipeline"/> objects.
@@ -13,7 +13,7 @@ namespace Synercoding.ClaudeApprover.PowerShellParser;
 /// (<c>$var = ...</c>). Pure-literal assignments (e.g. <c>$x = 'foo'</c>) emit a command whose executable is
 /// the sentinel <see cref="ASSIGNMENT_SENTINEL"/>.
 /// </remarks>
-public class PowerShellCommandParser
+public class PowerShellParser
 {
     /// <summary>
     /// Executable name used for variable-assignment statements whose right-hand side is a pure literal expression.
