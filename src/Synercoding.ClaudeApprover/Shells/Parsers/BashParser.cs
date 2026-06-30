@@ -25,35 +25,48 @@ public class BashParser
 
     private Pipeline _parsePipeline()
     {
+        // Skip any leading separators, blank lines and comment-only lines so the
+        // pipeline starts at a real command.
+        _skipSeparatorsAndWhitespace();
+
         var pipeline = new Pipeline();
         pipeline.Commands.Add(_parseCommand());
 
-        _skipWhitespace();
+        _skipInlineWhitespace();
 
-        // Check for pipe operators
+        // Check for pipe/control operators and statement separators
         if (_position < _input.Length)
         {
             if (_peek(2) == "||")
             {
                 _consume(2);
                 pipeline.Operator = "||";
-                _skipWhitespace();
                 pipeline.NextPipeline = _parsePipeline();
             }
             else if (_peek(2) == "&&")
             {
                 _consume(2);
                 pipeline.Operator = "&&";
-                _skipWhitespace();
                 pipeline.NextPipeline = _parsePipeline();
             }
             else if (_peek() == '|')
             {
                 _consume(1);
                 pipeline.Operator = "|";
-                _skipWhitespace();
+                _skipInlineWhitespace();
                 var nextCommand = _parseCommand();
                 pipeline.Commands.Add(nextCommand);
+            }
+            else if (_isStatementSeparator(_peek()))
+            {
+                // A ';' or newline separates statements. Consume the separator(s)
+                // and, if any command follows, chain it as the next pipeline.
+                _skipSeparatorsAndWhitespace();
+                if (_position < _input.Length)
+                {
+                    pipeline.Operator = ";";
+                    pipeline.NextPipeline = _parsePipeline();
+                }
             }
         }
 
@@ -67,9 +80,13 @@ public class BashParser
 
         while (_position < _input.Length)
         {
-            _skipWhitespace();
+            _skipInlineWhitespace();
 
             if (_position >= _input.Length)
+                break;
+
+            // A statement separator (';' or newline) ends this command
+            if (_isStatementSeparator(_peek()))
                 break;
 
             // Check for pipeline operators
@@ -85,7 +102,7 @@ public class BashParser
             {
                 var redirType = _input[_position].ToString() + ">";
                 _consume(2);
-                _skipWhitespace();
+                _skipInlineWhitespace();
                 var target = _parseToken();
                 redirections.Add(new Redirection { Type = redirType, Target = target });
                 continue;
@@ -97,13 +114,13 @@ public class BashParser
                 if (_peek() == '>')
                 {
                     _consume(1);
-                    _skipWhitespace();
+                    _skipInlineWhitespace();
                     var target = _parseToken();
                     redirections.Add(new Redirection { Type = ">>", Target = target });
                 }
                 else
                 {
-                    _skipWhitespace();
+                    _skipInlineWhitespace();
                     var target = _parseToken();
                     redirections.Add(new Redirection { Type = ">", Target = target });
                 }
@@ -113,7 +130,7 @@ public class BashParser
             if (_peek() == '<')
             {
                 _consume(1);
-                _skipWhitespace();
+                _skipInlineWhitespace();
                 var target = _parseToken();
                 redirections.Add(new Redirection { Type = "<", Target = target });
                 continue;
@@ -184,7 +201,7 @@ public class BashParser
         {
             var ch = _peek();
 
-            if (char.IsWhiteSpace(ch) || ch == '|' || ch == '>' || ch == '<')
+            if (char.IsWhiteSpace(ch) || ch == '|' || ch == '>' || ch == '<' || ch == ';')
                 break;
 
             if (ch == '\\' && _position + 1 < _input.Length && _isUnquotedEscapable(_peekAt(1)))
@@ -232,15 +249,53 @@ public class BashParser
     private static bool _isDoubleQuoteEscapable(char c)
         => c is '\\' or '"' or '`' or '$';
 
-    private void _skipWhitespace()
+    private static bool _isStatementSeparator(char c)
+        => c is ';' or '\n' or '\r';
+
+    /// <summary>
+    /// Skips spaces, tabs and comments, but stops at a newline so it can be
+    /// recognised as a statement separator.
+    /// </summary>
+    private void _skipInlineWhitespace()
     {
         while (_position < _input.Length)
         {
-            if (char.IsWhiteSpace(_input[_position]))
+            var c = _input[_position];
+            if (c is '\n' or '\r')
+            {
+                break;
+            }
+            else if (char.IsWhiteSpace(c))
             {
                 _position++;
             }
-            else if (_input[_position] == '#')
+            else if (c == '#')
+            {
+                // Skip comment to end of line (the newline itself is left in place)
+                while (_position < _input.Length && _input[_position] != '\n')
+                    _position++;
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Skips statement separators (<c>;</c>, newlines), surrounding whitespace and
+    /// comment-only lines so parsing can resume at the next real command.
+    /// </summary>
+    private void _skipSeparatorsAndWhitespace()
+    {
+        while (_position < _input.Length)
+        {
+            var c = _input[_position];
+            if (char.IsWhiteSpace(c) || c == ';')
+            {
+                _position++;
+            }
+            else if (c == '#')
             {
                 // Skip comment to end of line
                 while (_position < _input.Length && _input[_position] != '\n')

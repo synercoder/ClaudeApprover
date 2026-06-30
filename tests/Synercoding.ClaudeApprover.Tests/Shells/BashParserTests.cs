@@ -243,4 +243,87 @@ public class BashParserTests
         pipeline.Commands[0].Executable.Should().Be("echo");
         pipeline.Commands[0].Arguments.Should().Equal("hello");
     }
+
+    [Fact]
+    public void Parse_SemicolonSeparator_CreatesNextPipeline()
+    {
+        var pipeline = _parser.Parse("cd src; ls");
+
+        pipeline.Commands.Should().HaveCount(1);
+        pipeline.Commands[0].Executable.Should().Be("cd");
+        pipeline.Commands[0].Arguments.Should().Equal("src");
+        pipeline.Operator.Should().Be(";");
+
+        pipeline.NextPipeline.Should().NotBeNull();
+        pipeline.NextPipeline!.Commands[0].Executable.Should().Be("ls");
+        pipeline.NextPipeline.Operator.Should().BeNull();
+    }
+
+    [Fact]
+    public void Parse_NewlineSeparator_CreatesNextPipeline()
+    {
+        var pipeline = _parser.Parse("cd src\nls -la");
+
+        pipeline.Commands.Should().HaveCount(1);
+        pipeline.Commands[0].Executable.Should().Be("cd");
+        pipeline.Commands[0].Arguments.Should().Equal("src");
+        pipeline.Operator.Should().Be(";");
+
+        pipeline.NextPipeline.Should().NotBeNull();
+        pipeline.NextPipeline!.Commands[0].Executable.Should().Be("ls");
+        pipeline.NextPipeline.Commands[0].Arguments.Should().Equal("-la");
+    }
+
+    [Fact]
+    public void Parse_CdFollowedByNewlineCommand_KeepsCdArgumentsSeparate()
+    {
+        // Regression: a newline-separated command must not be slurped into the
+        // previous command's arguments (cd previously ended up with many args).
+        var pipeline = _parser.Parse("cd /some/path\nsed -i 's/a/b/' file.cs\necho done");
+
+        pipeline.Commands.Should().HaveCount(1);
+        pipeline.Commands[0].Executable.Should().Be("cd");
+        pipeline.Commands[0].Arguments.Should().ContainSingle().Which.Should().Be("/some/path");
+
+        var second = pipeline.NextPipeline!;
+        second.Commands[0].Executable.Should().Be("sed");
+        second.Commands[0].Arguments.Should().Equal("-i", "s/a/b/", "file.cs");
+
+        var third = second.NextPipeline!;
+        third.Commands[0].Executable.Should().Be("echo");
+        third.Commands[0].Arguments.Should().Equal("done");
+        third.NextPipeline.Should().BeNull();
+    }
+
+    [Fact]
+    public void Parse_MultipleSemicolons_SkipsEmptyStatements()
+    {
+        var pipeline = _parser.Parse("cd src;; ls");
+
+        pipeline.Commands[0].Executable.Should().Be("cd");
+        pipeline.NextPipeline.Should().NotBeNull();
+        pipeline.NextPipeline!.Commands[0].Executable.Should().Be("ls");
+    }
+
+    [Fact]
+    public void Parse_TrailingSeparator_DoesNotCreateEmptyPipeline()
+    {
+        var pipeline = _parser.Parse("ls -la\n");
+
+        pipeline.Commands[0].Executable.Should().Be("ls");
+        pipeline.NextPipeline.Should().BeNull();
+    }
+
+    [Fact]
+    public void Parse_SemicolonInsideSingleQuotes_IsPreserved()
+    {
+        // The ';' inside the sed expression must stay part of the argument,
+        // not split the command.
+        var pipeline = _parser.Parse("sed -i 's/a/b/; s/c/d/' file.cs");
+
+        pipeline.Commands.Should().HaveCount(1);
+        pipeline.Commands[0].Executable.Should().Be("sed");
+        pipeline.Commands[0].Arguments.Should().Equal("-i", "s/a/b/; s/c/d/", "file.cs");
+        pipeline.NextPipeline.Should().BeNull();
+    }
 }
