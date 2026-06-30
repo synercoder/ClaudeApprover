@@ -174,6 +174,35 @@ public class InsideProjectAllowedApproverTests
     }
 
     [Fact]
+    public void Handle_CdFollowedByNewlineSeparatedCommands_DoesNotThrow()
+    {
+        // Regression: a multi-line bash command (cd on its own line, followed by
+        // further commands) used to be parsed as a single cd command with many
+        // arguments, making HandleCd's Arguments.Single() throw.
+        var approver = _createApprover();
+        var command =
+            $"cd {_p("src")}\n" +
+            "sed -i 's/foo/bar/; s/baz/qux/' file.cs\n" +
+            "echo done";
+        var input = _createToolInput(new BashInput { Command = command }, "Bash");
+
+        var act = () => approver.Handle(input);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Handle_CdInsideProjectFollowedBySemicolonCommand_Allows()
+    {
+        var approver = _createApprover();
+        var input = _createToolInput(new BashInput { Command = $"cd {_p("src")}; ls" }, "Bash");
+
+        var result = approver.Handle(input);
+
+        result!.HookSpecificOutput.PermissionDecision.Should().Be(PermissionDecision.Allow);
+    }
+
+    [Fact]
     public void Handle_CdOutsideProject_Denies()
     {
         var approver = _createApprover();
